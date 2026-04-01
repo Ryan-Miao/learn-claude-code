@@ -8,6 +8,9 @@ REM === JDK 25 配置 ===
 set JAVA_HOME=D:\Dev\jdk-25
 set PATH=%JAVA_HOME%\bin;%PATH%
 
+REM === 抑制 Maven JVM 的 JDK25 兼容性警告 ===
+set MAVEN_OPTS=--enable-native-access=ALL-UNNAMED --sun-misc-unsafe-memory-access=allow
+
 REM === AI API 配置（按需修改） ===
 REM set ANTHROPIC_API_KEY=your-api-key-here
 REM set AI_MODEL=claude-sonnet-4-20250514
