@@ -11,6 +11,7 @@ import java.io.PrintStream;
 public record CommandContext(
         AgentLoop agentLoop,
         ToolRegistry toolRegistry,
+        CommandRegistry commandRegistry,
         PrintStream out,
         Runnable exitCallback
 ) {

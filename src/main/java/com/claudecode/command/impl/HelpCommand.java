@@ -1,14 +1,13 @@
 package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
-import com.claudecode.command.CommandRegistry;
 import com.claudecode.command.SlashCommand;
 import com.claudecode.console.AnsiStyle;
 
 import java.util.List;
 
 /**
- * /help 命令 —— 对应 claude-code/src/commands/help.ts。
+ * /help 命令 —— 动态展示所有已注册的斜杠命令。
  */
 public class HelpCommand implements SlashCommand {
 
@@ -32,21 +31,31 @@ public class HelpCommand implements SlashCommand {
         StringBuilder sb = new StringBuilder();
         sb.append(AnsiStyle.bold("\n  Available Commands:\n\n"));
 
-        // 从注入的 CommandRegistry 获取不到（因为 context 里没有），所以硬编码与注册保持一致
-        sb.append(formatCmd("help", "Show available commands"));
-        sb.append(formatCmd("clear", "Clear conversation history"));
-        sb.append(formatCmd("compact", "Compact conversation context"));
-        sb.append(formatCmd("cost", "Show token usage and cost"));
-        sb.append(formatCmd("model", "Show or switch AI model"));
-        sb.append(formatCmd("exit", "Exit the application (also: /quit, /q)"));
+        // 从 CommandRegistry 动态获取所有已注册命令
+        var commands = context.commandRegistry().getCommands();
+
+        // 计算最长命令名称用于对齐
+        int maxNameLen = commands.stream()
+                .mapToInt(cmd -> cmd.name().length())
+                .max().orElse(12);
+        maxNameLen = Math.max(maxNameLen, 12);
+
+        for (SlashCommand cmd : commands) {
+            String nameStr = "/" + cmd.name();
+            // 如果有别名，附加显示
+            String aliasStr = "";
+            if (!cmd.aliases().isEmpty()) {
+                aliasStr = AnsiStyle.DIM + " (also: "
+                        + String.join(", ", cmd.aliases().stream().map(a -> "/" + a).toList())
+                        + ")" + AnsiStyle.RESET;
+            }
+            sb.append(String.format("  %s%-" + (maxNameLen + 2) + "s%s %s%s%n",
+                    AnsiStyle.CYAN, nameStr, AnsiStyle.RESET, cmd.description(), aliasStr));
+        }
 
         sb.append("\n");
         sb.append(AnsiStyle.dim("  Shortcuts: Tab to autocomplete, ↑↓ to browse history, Ctrl+D to exit\n"));
 
         return sb.toString();
-    }
-
-    private String formatCmd(String name, String desc) {
-        return String.format("  %s%-12s%s %s%n", AnsiStyle.CYAN, "/" + name, AnsiStyle.RESET, desc);
     }
 }

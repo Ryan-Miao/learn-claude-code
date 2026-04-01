@@ -192,7 +192,7 @@ public class ReplSession {
                 statusLine.enable(providerInfo.model(), agentLoop.getTokenTracker());
             }
 
-            CommandContext cmdContext = new CommandContext(agentLoop, toolRegistry, out, () -> running = false);
+            CommandContext cmdContext = new CommandContext(agentLoop, toolRegistry, commandRegistry, out, () -> running = false);
 
             while (running) {
                 String input;
@@ -272,7 +272,7 @@ public class ReplSession {
 
         Scanner scanner = new Scanner(System.in);
         this.activeScanner = scanner;
-        CommandContext cmdContext = new CommandContext(agentLoop, toolRegistry, out, () -> running = false);
+        CommandContext cmdContext = new CommandContext(agentLoop, toolRegistry, commandRegistry, out, () -> running = false);
 
         while (running) {
             out.print(AnsiStyle.BOLD + AnsiStyle.BRIGHT_CYAN + "❯ " + AnsiStyle.RESET);
