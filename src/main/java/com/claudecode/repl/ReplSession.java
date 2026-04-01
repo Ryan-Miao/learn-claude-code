@@ -220,16 +220,6 @@ public class ReplSession {
 
     /** 打印启动 Banner（JLine 模式） */
     private void printBanner(Terminal terminal) {
-        BannerPrinter.printCompact(out);
-
-        // 显示 API 提供者、模型和 URL
-        out.println(AnsiStyle.dim("  Provider: ") + AnsiStyle.cyan(providerInfo.provider().toUpperCase())
-                + AnsiStyle.dim("  Model: ") + AnsiStyle.cyan(providerInfo.model()));
-        out.println(AnsiStyle.dim("  API URL:  ") + AnsiStyle.cyan(providerInfo.baseUrl()));
-
-        out.println(AnsiStyle.dim("  Work Dir: " + System.getProperty("user.dir")));
-        out.println(AnsiStyle.dim("  Tools: " + toolRegistry.size() + " | Commands: " + commandRegistry.getCommands().size()));
-
         boolean isDumb = "dumb".equals(terminal.getType());
         int w = terminal.getWidth();
         int h = terminal.getHeight();
@@ -244,14 +234,27 @@ public class ReplSession {
             termInfo += " [vim]";
         }
 
-        out.println(AnsiStyle.dim("  Terminal: " + termInfo));
-
-        if (isDumb) {
-            out.println(AnsiStyle.yellow("  ⚠ Dumb 终端模式：Tab补全和行编辑可能受限"));
-            out.println(AnsiStyle.yellow("    建议在 Windows Terminal / PowerShell / cmd.exe 中运行"));
+        if (isDumb || w < 60) {
+            // 窄终端/dumb 模式用精简 Banner
+            BannerPrinter.printCompact(out);
+            out.println(AnsiStyle.dim("  Provider: ") + AnsiStyle.cyan(providerInfo.provider().toUpperCase())
+                    + AnsiStyle.dim("  Model: ") + AnsiStyle.cyan(providerInfo.model()));
+            out.println(AnsiStyle.dim("  Work Dir: " + System.getProperty("user.dir")));
+            if (isDumb) {
+                out.println(AnsiStyle.yellow("  ⚠ Dumb 终端模式：建议在 Windows Terminal / PowerShell 中运行"));
+            }
         } else {
-            out.println(AnsiStyle.dim("  Tip: Tab to complete commands, ↑↓ to browse history, Ctrl+D to exit"));
+            // 标准终端用带边框的 Banner
+            BannerPrinter.printBoxed(out,
+                    providerInfo.provider(),
+                    providerInfo.model(),
+                    providerInfo.baseUrl(),
+                    System.getProperty("user.dir"),
+                    toolRegistry.size(),
+                    commandRegistry.getCommands().size(),
+                    termInfo);
         }
+
         out.println();
     }
 
@@ -312,6 +315,11 @@ public class ReplSession {
             spinner.start("Thinking...");
             out.println(); // 换行准备输出区域
 
+            long startTime = System.currentTimeMillis();
+
+            // AI 回复前的 ● 标识
+            out.println(AnsiStyle.BRIGHT_CYAN + "  ● " + AnsiStyle.RESET);
+
             // 流式回调：逐 token 输出到终端
             String response = agentLoop.runStreaming(input, token -> {
                 out.print(token);
@@ -321,6 +329,12 @@ public class ReplSession {
             spinner.stop();
             out.println(); // 流式输出结束后换行
 
+            // 显示耗时
+            long elapsed = (System.currentTimeMillis() - startTime) / 1000;
+            if (elapsed > 0) {
+                out.println(AnsiStyle.DIM + "  ✻ Worked for " + elapsed + "s" + AnsiStyle.RESET);
+            }
+
             // 刷新底部状态行（显示最新 token 用量）
             if (statusLine.isEnabled()) {
                 out.println(statusLine.renderInline());
@@ -328,7 +342,7 @@ public class ReplSession {
             out.println();
         } catch (Exception e) {
             spinner.stop();
-            out.println(AnsiStyle.red("\n  ✗ Error: " + e.getMessage()));
+            out.println(AnsiStyle.RED + "\n  ● Error: " + AnsiStyle.RESET + e.getMessage());
             log.error("Agent 循环异常", e);
             out.println();
         }
