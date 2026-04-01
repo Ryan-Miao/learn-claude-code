@@ -50,6 +50,7 @@ public class AgentLoop {
     private final ToolContext toolContext;
     private final String systemPrompt;
     private final TokenTracker tokenTracker;
+    private final HookManager hookManager;
 
     /** 消息历史 —— 自行管理，不依赖 Spring AI ChatMemory */
     private final List<Message> messageHistory = new ArrayList<>();
@@ -81,6 +82,7 @@ public class AgentLoop {
         this.toolContext = toolContext;
         this.systemPrompt = systemPrompt;
         this.tokenTracker = tokenTracker;
+        this.hookManager = new HookManager();
         this.messageHistory.add(new SystemMessage(systemPrompt));
     }
 
@@ -279,6 +281,20 @@ public class AgentLoop {
             String toolArgs = toolCall.arguments();
             String callId = toolCall.id();
 
+            // 解析参数用于 Hook 和权限检查
+            Map<String, Object> parsedArgs = Map.of();
+            try {
+                parsedArgs = MAPPER.readValue(toolArgs, Map.class);
+            } catch (Exception ignored) {}
+
+            // PreToolUse Hook
+            var preHookCtx = new HookManager.HookContext(toolName, parsedArgs);
+            if (hookManager.execute(HookManager.HookType.PRE_TOOL_USE, preHookCtx) == HookManager.HookResult.ABORT) {
+                log.info("[{}] PreToolUse Hook 中止了执行", toolName);
+                toolResponses.add(new ToolResponseMessage.ToolResponse(callId, toolName, "Aborted by hook"));
+                continue;
+            }
+
             if (onToolEvent != null) {
                 onToolEvent.accept(new ToolEvent(toolName, ToolEvent.Phase.START, toolArgs, null));
             }
@@ -289,16 +305,9 @@ public class AgentLoop {
                 // 权限确认：非只读工具需要用户确认
                 boolean permitted = true;
                 if (!adapter.getTool().isReadOnly() && onPermissionRequest != null) {
-                    try {
-                        Map<String, Object> parsedArgs = MAPPER.readValue(toolArgs, Map.class);
-                        String activity = adapter.getTool().activityDescription(parsedArgs);
-                        PermissionRequest req = new PermissionRequest(toolName, toolArgs, activity);
-                        permitted = onPermissionRequest.apply(req);
-                    } catch (Exception e) {
-                        // JSON 解析失败时仍然请求确认
-                        PermissionRequest req = new PermissionRequest(toolName, toolArgs, "执行 " + toolName);
-                        permitted = onPermissionRequest.apply(req);
-                    }
+                    String activity = adapter.getTool().activityDescription(parsedArgs);
+                    PermissionRequest req = new PermissionRequest(toolName, toolArgs, activity);
+                    permitted = onPermissionRequest.apply(req);
                 }
 
                 if (permitted) {
@@ -310,6 +319,15 @@ public class AgentLoop {
             } else {
                 result = "Error: Unknown tool '" + toolName + "'";
                 log.warn("未知工具: {}", toolName);
+            }
+
+            // PostToolUse Hook
+            var postHookCtx = new HookManager.HookContext(toolName, parsedArgs);
+            postHookCtx.setResult(result);
+            hookManager.execute(HookManager.HookType.POST_TOOL_USE, postHookCtx);
+            // Hook 可能修改了结果
+            if (postHookCtx.getResult() != null) {
+                result = postHookCtx.getResult();
             }
 
             if (onToolEvent != null) {
@@ -355,6 +373,11 @@ public class AgentLoop {
     /** 获取工具上下文（用于注册回调） */
     public ToolContext getToolContext() {
         return toolContext;
+    }
+
+    /** 获取 Hook 管理器 */
+    public HookManager getHookManager() {
+        return hookManager;
     }
 
     /** 重置历史（保留系统提示词） */

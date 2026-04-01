@@ -168,6 +168,13 @@ public class ReplSession {
                     .option(LineReader.Option.AUTO_LIST, true)
                     .build();
 
+            // Vim 模式支持：通过环境变量 CLAUDE_CODE_VIM=1 或配置启用
+            String vimMode = System.getenv("CLAUDE_CODE_VIM");
+            if ("1".equals(vimMode) || "true".equalsIgnoreCase(vimMode)) {
+                reader.setVariable(LineReader.EDITING_MODE, "vi");
+                log.info("已启用 Vim 编辑模式");
+            }
+
             // 主提示符
             String prompt = new AttributedStringBuilder()
                     .style(AttributedStyle.BOLD.foreground(AttributedStyle.CYAN))
@@ -181,8 +188,7 @@ public class ReplSession {
             this.activeReader = reader;
 
             // 非 dumb 终端启用底部状态行
-            boolean isDumb2 = "dumb".equals(terminal.getType());
-            if (!isDumb2) {
+            if (!isDumb) {
                 statusLine.enable(providerInfo.model(), agentLoop.getTokenTracker());
             }
 
@@ -222,7 +228,7 @@ public class ReplSession {
         out.println(AnsiStyle.dim("  API URL:  ") + AnsiStyle.cyan(providerInfo.baseUrl()));
 
         out.println(AnsiStyle.dim("  Work Dir: " + System.getProperty("user.dir")));
-        out.println(AnsiStyle.dim("  Tools: " + toolRegistry.size() + " registered"));
+        out.println(AnsiStyle.dim("  Tools: " + toolRegistry.size() + " | Commands: " + commandRegistry.getCommands().size()));
 
         boolean isDumb = "dumb".equals(terminal.getType());
         int w = terminal.getWidth();
@@ -231,6 +237,13 @@ public class ReplSession {
         if (w > 0 && h > 0) {
             termInfo += " (" + w + "×" + h + ")";
         }
+
+        // Vim 模式标识
+        String vimMode = System.getenv("CLAUDE_CODE_VIM");
+        if ("1".equals(vimMode) || "true".equalsIgnoreCase(vimMode)) {
+            termInfo += " [vim]";
+        }
+
         out.println(AnsiStyle.dim("  Terminal: " + termInfo));
 
         if (isDumb) {
