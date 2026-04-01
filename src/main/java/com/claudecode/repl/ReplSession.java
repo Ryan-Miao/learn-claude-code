@@ -60,6 +60,11 @@ public class ReplSession {
     /** 流式输出换行跟踪：工具渲染和流式回调共享，保证缩进一致 */
     private volatile boolean streamNewLine = false;
 
+    /** 流式行缓冲：累积 token 到换行再 Markdown 渲染输出 */
+    private final StringBuilder streamLineBuffer = new StringBuilder();
+    /** 流式 Markdown 渲染状态：跨行追踪代码块 */
+    private MarkdownRenderer.StreamState streamMdState = new MarkdownRenderer.StreamState();
+
     /** 当前活跃的 LineReader（JLine 模式下用于 AskUser 和权限确认） */
     private volatile LineReader activeReader;
     /** 当前活跃的 Scanner（Scanner 模式下用于 AskUser 和权限确认） */
@@ -102,7 +107,8 @@ public class ReplSession {
             switch (event.phase()) {
                 case START -> {
                     spinner.stop();
-                    // 如果前面的流式文本没有换行结尾，先换行
+                    // 刷新行缓冲（AI 文本可能在工具调用前没有换行结尾）
+                    flushStreamLineBuffer();
                     if (!streamNewLine) {
                         out.println();
                     }
@@ -333,12 +339,10 @@ public class ReplSession {
         try {
             spinner.start("Thinking...");
             streamNewLine = true; // spinner 停止后 onStreamStart 会打印 ● 前缀
+            streamLineBuffer.setLength(0); // 重置行缓冲
+            streamMdState = new MarkdownRenderer.StreamState(); // 重置 Markdown 状态
 
             long startTime = System.currentTimeMillis();
-
-            // 行缓冲：累积 token 直到换行，再用 MarkdownRenderer 渲染整行输出
-            StringBuilder lineBuffer = new StringBuilder();
-            MarkdownRenderer.StreamState mdState = new MarkdownRenderer.StreamState();
 
             String response = agentLoop.runStreaming(input, token -> {
                 for (int i = 0; i < token.length(); i++) {
@@ -349,26 +353,19 @@ public class ReplSession {
                             out.print("    "); // 续行缩进（与 ● 后文本对齐）
                             streamNewLine = false;
                         }
-                        String rendered = markdownRenderer.renderStreamingLine(lineBuffer.toString(), mdState);
+                        String rendered = markdownRenderer.renderStreamingLine(streamLineBuffer.toString(), streamMdState);
                         out.println(rendered);
-                        lineBuffer.setLength(0);
+                        streamLineBuffer.setLength(0);
                         streamNewLine = true;
                     } else {
-                        lineBuffer.append(c);
+                        streamLineBuffer.append(c);
                     }
                 }
                 out.flush();
             });
 
             // 刷新残留缓冲（最后一行可能无 \n 结尾）
-            if (!lineBuffer.isEmpty()) {
-                if (streamNewLine) {
-                    out.print("    ");
-                    streamNewLine = false;
-                }
-                String rendered = markdownRenderer.renderStreamingLine(lineBuffer.toString(), mdState);
-                out.print(rendered);
-            }
+            flushStreamLineBuffer();
 
             spinner.stop();
             out.println(); // 流式输出结束后换行
@@ -389,6 +386,22 @@ public class ReplSession {
             out.println(AnsiStyle.RED + "\n  ● Error: " + AnsiStyle.RESET + e.getMessage());
             log.error("Agent loop exception", e);
             out.println();
+        }
+    }
+
+    /**
+     * 刷新流式行缓冲 —— 将未输出的缓冲内容渲染并打印。
+     * 在工具调用前、流式结束后调用，防止 AI 文本丢失。
+     */
+    private void flushStreamLineBuffer() {
+        if (!streamLineBuffer.isEmpty()) {
+            if (streamNewLine) {
+                out.print("    ");
+                streamNewLine = false;
+            }
+            String rendered = markdownRenderer.renderStreamingLine(streamLineBuffer.toString(), streamMdState);
+            out.print(rendered);
+            streamLineBuffer.setLength(0);
         }
     }
 
