@@ -12,6 +12,7 @@ import com.claudecode.tool.ToolContext;
 import com.claudecode.tool.ToolRegistry;
 import com.claudecode.tool.impl.*;
 import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -67,7 +68,7 @@ public class AppConfig {
     }
 
     @Bean
-    public AgentLoop agentLoop(ChatModel chatModel, ToolRegistry toolRegistry,
+    public AgentLoop agentLoop(@Qualifier("anthropicChatModel") ChatModel chatModel, ToolRegistry toolRegistry,
                                ToolContext toolContext, String systemPrompt) {
         return new AgentLoop(chatModel, toolRegistry, toolContext, systemPrompt);
     }

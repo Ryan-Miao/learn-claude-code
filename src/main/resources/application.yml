@@ -3,9 +3,10 @@ spring:
   ai:
     anthropic:
       api-key: ${ANTHROPIC_API_KEY:}
+      base-url: ${ANTHROPIC_BASE_URL:https://open.bigmodel.cn/api/anthropic}
       chat:
         options:
-          model: ${AI_MODEL:claude-sonnet-4-20250514}
+          model: ${AI_MODEL:claude-sonnet-4}
           max-tokens: ${AI_MAX_TOKENS:8096}
           temperature: 0.7
     # 备选：兼容 OpenAI 格式的 API（如自建代理）
