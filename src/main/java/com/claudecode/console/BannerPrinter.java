@@ -34,14 +34,14 @@ public class BannerPrinter {
         int boxWidth = 90;
         String hr = H.repeat(boxWidth - 2);
 
-        // Logo（简洁的 Java 咖啡杯 + 项目名）
+        // Logo（ASCII 冒烟咖啡杯 — 每行精确 16 字符宽）
         String[] logo = {
-                "     ╭───╮   ",
-                "     │ ☕ │   ",
-                "  ╭──╰───╯──╮",
-                "  │  CLAUDE  │",
-                "  │   CODE   │",
-                "  ╰──────────╯"
+                "      ) ) )     ",
+                "   ╭────────╮   ",
+                "   │ ~~~~~~ │   ",
+                "   │ CLAUDE │   ",
+                "   │  CODE  │   ",
+                "   ╰─┬────┬─╯   "
         };
 
         // 右侧信息
