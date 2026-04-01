@@ -38,11 +38,14 @@ public class StdioTransport implements McpTransport {
     /** 子进程 stdin 写入流 */
     private BufferedWriter processStdin;
 
-    /** 异步读取线程 */
+    /** 异步读取线程（stdout） */
     private Thread readerThread;
 
-    /** 待匹配的请求：id -> CompletableFuture */
-    private final ConcurrentHashMap<Object, CompletableFuture<JsonNode>> pendingRequests =
+    /** 异步读取线程（stderr） */
+    private Thread stderrThread;
+
+    /** 待匹配的请求：id(String) -> CompletableFuture */
+    private final ConcurrentHashMap<String, CompletableFuture<JsonNode>> pendingRequests =
             new ConcurrentHashMap<>();
 
     /** 启动命令 */
@@ -102,7 +105,7 @@ public class StdioTransport implements McpTransport {
             readerThread = Thread.ofVirtual().name("mcp-stdio-reader").start(this::readLoop);
 
             // 启动 stderr 日志线程（仅记录日志，不参与协议通信）
-            Thread.ofVirtual().name("mcp-stdio-stderr").start(this::stderrLoop);
+            stderrThread = Thread.ofVirtual().name("mcp-stdio-stderr").start(this::stderrLoop);
 
             connected = true;
             log.info("MCP 服务器进程已启动 (PID: {})", process.pid());
@@ -172,12 +175,8 @@ public class StdioTransport implements McpTransport {
         // 检查是否有 id 字段（响应消息）
         JsonNode idNode = message.get("id");
         if (idNode != null && !idNode.isNull()) {
-            Object id;
-            if (idNode.isNumber()) {
-                id = idNode.asInt();
-            } else {
-                id = idNode.asText();
-            }
+            // 统一转为 String，避免 Integer/String 类型不匹配导致的查找失败
+            String id = idNode.asText();
 
             CompletableFuture<JsonNode> future = pendingRequests.remove(id);
             if (future != null) {
@@ -198,20 +197,15 @@ public class StdioTransport implements McpTransport {
             throw new McpException("MCP 传输层未连接");
         }
 
+        String id = null;
         try {
-            // 解析出请求 id
+            // 解析出请求 id（统一转为 String）
             JsonNode requestNode = MAPPER.readTree(jsonRpcRequest);
             JsonNode idNode = requestNode.get("id");
             if (idNode == null || idNode.isNull()) {
                 throw new McpException("JSON-RPC 请求缺少 id 字段");
             }
-
-            Object id;
-            if (idNode.isNumber()) {
-                id = idNode.asInt();
-            } else {
-                id = idNode.asText();
-            }
+            id = idNode.asText();
 
             // 注册 Future
             CompletableFuture<JsonNode> future = new CompletableFuture<>();
@@ -251,6 +245,11 @@ public class StdioTransport implements McpTransport {
             throw new McpException("MCP 请求执行异常: " + cause.getMessage(), cause);
         } catch (Exception e) {
             throw new McpException("MCP 请求发送失败: " + e.getMessage(), e);
+        } finally {
+            // 无论成功、超时或异常，都清理待处理请求，防止内存泄漏
+            if (id != null) {
+                pendingRequests.remove(id);
+            }
         }
     }
 
@@ -304,6 +303,9 @@ public class StdioTransport implements McpTransport {
         // 中断读取线程
         if (readerThread != null && readerThread.isAlive()) {
             readerThread.interrupt();
+        }
+        if (stderrThread != null && stderrThread.isAlive()) {
+            stderrThread.interrupt();
         }
 
         // 清理待处理请求

@@ -4,16 +4,35 @@
 
 ## ✨ 功能特性
 
+### 核心功能
 - 🤖 **AI 对话** — 流式输出，逐 token 实时显示
-- 🔧 **11 个内置工具** — Bash、文件读写编辑、Glob、Grep、Web获取、Agent 等
+- 🔧 **18 个内置工具** — Bash、文件操作、搜索、Web、任务管理、MCP桥接 等
 - ⚡ **双 API 提供者** — 同时支持 OpenAI 兼容 API 和 Anthropic 原生 API
-- 📝 **斜杠命令** — `/help`, `/compact`, `/cost`, `/model`, `/history` 等 11 个命令
-- 🖥️ **JLine 终端** — 行编辑、历史记录、Tab 补全、多行输入
+- 📝 **28 个斜杠命令** — 从基础操作到代码审查、安全分析、对话管理
+- 🖥️ **JLine 终端** — 行编辑、历史记录、Tab 补全、多行输入、Vim 模式
 - 📋 **CLAUDE.md** — 自动加载项目级和用户级记忆文件
 - 🎯 **Skills** — 可扩展的技能系统
 - 🌿 **Git 上下文** — 自动收集分支、状态、最近提交
-- 💾 **对话持久化** — 自动保存对话历史，支持回顾
-- 🗜️ **上下文压缩** — AI 生成摘要替代简单清空
+
+### P0 核心增强
+- 🔒 **权限确认** — 危险操作（文件写入、Bash执行）前要求用户确认 [Y/n/always]
+- 💭 **Thinking 显示** — 展示 AI 思考过程（Anthropic extended thinking）
+- 🔍 **WebSearch** — DuckDuckGo 网络搜索（无需 API Key）
+- ❓ **AskUser** — AI 在执行过程中向用户提问
+
+### P1 体验增强
+- 📊 **底部状态行** — 持续显示模型、Token、费用、工作目录
+- 🪝 **Hook 系统** — PreToolUse/PostToolUse/PrePrompt/PostResponse 4 种钩子
+- 🎨 **代码语法高亮** — 支持 Java/JS/TS/Python/Bash/SQL 6 种语言
+- ⌨️ **Vim 模式** — JLine vi 编辑模式（`CLAUDE_CODE_VIM=1` 启用）
+
+### P2 扩展功能
+- 🔌 **MCP 协议** — Model Context Protocol 客户端（StdIO 传输、工具发现、资源读取）
+- 🧩 **插件系统** — JAR 插件加载（ClassLoader 隔离、工具/命令扩展）
+- 📋 **任务管理** — 后台任务创建、查询、更新（4 个工具）
+- 🔀 **彩色 Diff** — unified diff 渲染（行号、stat 摘要、颜色标注）
+- 🌿 **对话分支** — 保存/恢复/标签对话状态
+- 🛡️ **安全审查** — AI 驱动的安全漏洞检测
 
 ## 📦 技术栈
 
@@ -85,7 +104,7 @@ mvn spring-boot:run
   Provider: OPENAI  Model: deepseek-chat
   API URL:  https://api.deepseek.com
   Work Dir: D:\my-project
-  Tools: 11 registered
+  Tools: 18 | Commands: 28
   Terminal: windows-vtp (160×30)
   Tip: Tab to complete commands, ↑↓ to browse history, Ctrl+D to exit
 
@@ -113,23 +132,59 @@ mvn spring-boot:run
 
 ### 斜杠命令
 
-| 命令 | 说明 |
-|------|------|
-| `/help` | 显示所有可用命令 |
-| `/clear` | 清屏 |
-| `/compact` | AI 摘要压缩对话上下文 |
-| `/cost` | 显示 Token 使用量和费用 |
-| `/model [name]` | 查看/切换模型 |
-| `/status` | 显示会话状态（消息数、Token、模型） |
-| `/context` | 显示已加载的上下文（CLAUDE.md、Skills、Git） |
-| `/config` | 查看配置信息 |
-| `/init` | 初始化 CLAUDE.md 配置文件 |
-| `/history` | 列出保存的对话历史 |
-| `/exit` | 退出 |
+#### 基础命令
+
+| 命令 | 别名 | 说明 |
+|------|------|------|
+| `/help` | | 显示所有可用命令 |
+| `/clear` | | 清屏 |
+| `/compact` | | AI 摘要压缩对话上下文 |
+| `/cost` | | 显示 Token 使用量和费用 |
+| `/model [name]` | | 查看/切换模型 |
+| `/status` | | 显示会话状态 |
+| `/context` | | 显示已加载的上下文 |
+| `/config` | | 查看配置信息 |
+| `/init` | | 初始化 CLAUDE.md 配置文件 |
+| `/history` | | 列出保存的对话历史 |
+| `/exit` | `/quit` | 退出 |
+
+#### P0 命令
+
+| 命令 | 别名 | 说明 |
+|------|------|------|
+| `/diff` | | 显示 Git 变更（支持 `--staged`, `--stat`） |
+| `/version` | `/ver` | 显示版本和环境信息 |
+| `/skills` | | 列出已加载的技能 |
+| `/memory` | `/mem` | 查看/编辑 CLAUDE.md |
+| `/copy` | | 复制最近回复到剪贴板 |
+
+#### P1 命令
+
+| 命令 | 别名 | 说明 |
+|------|------|------|
+| `/resume` | | 恢复已保存的对话 |
+| `/export` | | 导出对话为 Markdown 文件 |
+| `/commit` | | AI 生成 commit message 并提交 |
+
+#### P2 命令
+
+| 命令 | 别名 | 说明 |
+|------|------|------|
+| `/hooks` | | 查看已注册的 Hook |
+| `/review` | `/rev` | AI 代码审查（支持 `--staged`、文件路径） |
+| `/stats` | | 使用统计（Token、费用、API调用、运行时长） |
+| `/branch` | | 对话分支（`save/load/list/delete`） |
+| `/rewind [n]` | | 回退对话历史（默认回退1轮） |
+| `/tag` | | 对话标签（`<name>/list/goto <name>`） |
+| `/security-review` | `/sec` | AI 安全漏洞审查 |
+| `/mcp` | | MCP 服务器管理（`connect/disconnect/tools/resources`） |
+| `/plugin` | | 插件管理（`load/unload/reload/info`） |
 
 ### 内置工具
 
 AI 可以自动调用以下工具：
+
+#### 核心工具（Phase 1-3）
 
 | 工具 | 说明 |
 |------|------|
@@ -144,6 +199,24 @@ AI 可以自动调用以下工具：
 | `todo_write` | 管理待办事项 |
 | `agent` | 启动子 Agent 处理复杂任务 |
 | `notebook_edit` | 编辑 Jupyter Notebook |
+
+#### P0 工具
+
+| 工具 | 说明 |
+|------|------|
+| `web_search` | DuckDuckGo 网络搜索（无需 API Key） |
+| `ask_user_question` | AI 向用户提问（暂停 agent loop 等待输入） |
+
+#### P2 工具
+
+| 工具 | 说明 |
+|------|------|
+| `TaskCreate` | 创建后台任务 |
+| `TaskGet` | 查询任务详情 |
+| `TaskList` | 列出任务（支持状态过滤） |
+| `TaskUpdate` | 更新任务状态和结果 |
+| `Config` | 读写配置值 |
+| `mcp__*` | MCP 远程工具桥接（动态注册） |
 
 ### CLAUDE.md 记忆文件
 
@@ -185,6 +258,81 @@ description: 代码审查技能
 3. 性能考量
 ```
 
+### MCP 服务器集成
+
+配置 MCP 服务器，在项目根目录创建 `.mcp.json`：
+
+```json
+{
+  "servers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/dir"]
+    },
+    "my-server": {
+      "command": "python",
+      "args": ["my_mcp_server.py"],
+      "env": { "API_KEY": "xxx" }
+    }
+  }
+}
+```
+
+或放在全局目录 `~/.claude-code-java/mcp.json`。
+
+使用 `/mcp` 命令管理：
+```
+❯ /mcp                          # 列出所有 MCP 服务器
+❯ /mcp tools                    # 列出所有 MCP 工具
+❯ /mcp connect myserver cmd args # 连接新服务器
+❯ /mcp disconnect myserver      # 断开服务器
+```
+
+### 插件系统
+
+JAR 插件放在以下目录即可自动加载：
+- `~/.claude-code-java/plugins/` — 全局插件
+- `.claude-code/plugins/` — 项目级插件
+
+JAR 要求：
+- `META-INF/MANIFEST.MF` 中包含 `Plugin-Class` 属性
+- 实现 `com.claudecode.plugin.Plugin` 接口
+
+使用 `/plugin` 命令管理：
+```
+❯ /plugin                      # 列出已加载插件
+❯ /plugin info output-style    # 查看插件详情
+❯ /plugin unload my-plugin     # 卸载插件
+```
+
+### Vim 模式
+
+设置环境变量启用 JLine vi 编辑模式：
+
+```bash
+export CLAUDE_CODE_VIM=1
+```
+
+启用后 Banner 会显示 `[vim]` 标识，输入行支持 vi 按键绑定。
+
+### Hook 系统
+
+通过代码注册 Hook 来拦截工具调用：
+
+```java
+agentLoop.getHookManager().register(HookManager.HookType.PRE_TOOL_USE, new Hook() {
+    public String name() { return "my-hook"; }
+    public int priority() { return 10; }
+    public HookResult execute(HookContext ctx) {
+        // 可检查 ctx.getToolName(), ctx.getArguments()
+        // 返回 ABORT 可阻止工具执行
+        return HookResult.CONTINUE;
+    }
+});
+```
+
+4 种钩子类型：`PRE_TOOL_USE`、`POST_TOOL_USE`、`PRE_PROMPT`、`POST_RESPONSE`
+
 ## 🏗️ 架构设计
 
 ### 模块结构
@@ -195,32 +343,54 @@ com.claudecode
 ├── cli/
 │   └── ClaudeCodeRunner           // 启动编排（CommandLineRunner）
 ├── config/
-│   └── AppConfig                  // Bean 装配、Provider 切换
+│   └── AppConfig                  // Bean 装配、Provider 切换、组件注册
 ├── core/
-│   ├── AgentLoop                  // Agent 循环（阻塞 + 流式）
+│   ├── AgentLoop                  // Agent 循环（阻塞 + 流式 + Hook集成）
 │   ├── TokenTracker               // Token 使用追踪
-│   └── ConversationPersistence    // 对话持久化
+│   ├── ConversationPersistence    // 对话持久化
+│   ├── HookManager                // Hook 系统（4种钩子类型）
+│   └── TaskManager                // 后台任务管理
 ├── tool/
 │   ├── Tool                       // 工具协议接口
 │   ├── ToolRegistry               // 工具注册中心
 │   ├── ToolCallbackAdapter        // Spring AI 适配器
-│   └── impl/                      // 11 个工具实现
+│   └── impl/                      // 18 个工具实现
+│       ├── BashTool, FileReadTool, FileWriteTool, FileEditTool
+│       ├── GlobTool, GrepTool, ListFilesTool, WebFetchTool
+│       ├── TodoWriteTool, AgentTool, NotebookEditTool
+│       ├── WebSearchTool, AskUserQuestionTool
+│       ├── TaskCreateTool, TaskGetTool, TaskListTool, TaskUpdateTool
+│       ├── ConfigTool
+│       └── McpToolBridge          // MCP 远程工具桥接
 ├── command/
 │   ├── SlashCommand               // 命令接口
 │   ├── CommandRegistry            // 命令注册中心
-│   └── impl/                      // 11 个命令实现
+│   └── impl/                      // 28 个命令实现
 ├── console/
 │   ├── BannerPrinter              // 启动 Banner
 │   ├── ToolStatusRenderer         // 工具状态渲染
 │   ├── ThinkingRenderer           // Thinking 渲染
 │   ├── SpinnerAnimation           // 加载动画
-│   ├── MarkdownRenderer           // Markdown 渲染
+│   ├── MarkdownRenderer           // Markdown 渲染（含语法高亮）
+│   ├── DiffRenderer               // 彩色 Diff 渲染
+│   ├── StatusLine                 // 底部状态行
 │   └── AnsiStyle                  // ANSI 样式工具
 ├── context/
 │   ├── SystemPromptBuilder        // 系统提示词构建
 │   ├── ClaudeMdLoader             // CLAUDE.md 加载
 │   ├── SkillLoader                // Skills 加载
 │   └── GitContext                 // Git 上下文收集
+├── mcp/
+│   ├── McpClient                  // MCP 客户端（JSON-RPC 2.0）
+│   ├── McpTransport               // 传输层接口
+│   ├── StdioTransport             // StdIO 传输实现
+│   ├── McpManager                 // 多服务器管理
+│   └── McpException               // MCP 异常
+├── plugin/
+│   ├── Plugin                     // 插件接口
+│   ├── PluginContext              // 插件上下文
+│   ├── PluginManager              // 插件加载/管理
+│   └── OutputStylePlugin          // 内置输出样式插件
 └── repl/
     ├── ReplSession                // REPL 会话管理
     └── ClaudeCodeCompleter        // Tab 补全
@@ -235,9 +405,37 @@ com.claudecode
                         ↓
               逐token实时输出到终端
                         ↓
-              检测工具调用 → 执行工具 → 结果回传
+              检测工具调用 → PreToolUse Hook → 权限确认 → 执行工具 → PostToolUse Hook → 结果回传
                         ↓
               继续循环或结束
+```
+
+### MCP 协议架构
+
+```
+McpManager ─── 配置加载 (.mcp.json)
+    │
+    ├── McpClient("server-a") ── StdioTransport ── 子进程 (npx server-a)
+    │       ├── tools/list → 发现工具
+    │       ├── tools/call → 调用工具
+    │       └── resources/read → 读取资源
+    │
+    └── McpClient("server-b") ── StdioTransport ── 子进程 (python server-b)
+            └── ... (同上)
+
+McpToolBridge → 将 MCP 工具映射为本地 Tool → 注册到 ToolRegistry → AI 可调用
+```
+
+### 插件系统架构
+
+```
+PluginManager
+    ├── 全局插件: ~/.claude-code-java/plugins/*.jar
+    ├── 项目插件: .claude-code/plugins/*.jar
+    └── 内置插件: OutputStylePlugin
+        │
+        ├── Plugin.getTools() → 注册到 ToolRegistry
+        └── Plugin.getCommands() → 注册到 CommandRegistry
 ```
 
 ### 双 API 提供者架构
@@ -279,6 +477,7 @@ claude-code:
 | `AI_BASE_URL` | ❌ | API 基础 URL | 按提供者不同 |
 | `AI_MODEL` | ❌ | 模型名称 | 按提供者不同 |
 | `AI_MAX_TOKENS` | ❌ | 最大 Token 数 | `8096` |
+| `CLAUDE_CODE_VIM` | ❌ | 启用 Vim 编辑模式 | `0` |
 
 ## 🔧 开发
 
@@ -308,11 +507,15 @@ java -jar target/claude-code-java-0.1.0-SNAPSHOT.jar
 | `cli.tsx` → `main.tsx` | `ClaudeCodeApplication` + `ClaudeCodeRunner` | 入口 |
 | `REPL.tsx` | `ReplSession` + JLine 3 | 交互循环 |
 | `query.ts` | `AgentLoop` | Agent 循环 |
-| `Tool.ts` + `tools/*` | `Tool` 接口 + `impl/*` | 工具系统 |
-| `commands.ts` | `SlashCommand` + `impl/*` | 命令系统 |
+| `Tool.ts` + `tools/*` | `Tool` 接口 + `impl/*` (18个) | 工具系统 |
+| `commands.ts` | `SlashCommand` + `impl/*` (28个) | 命令系统 |
 | `context.ts` + `prompts.ts` | `SystemPromptBuilder` + loaders | 上下文 |
 | `CLAUDE.md` + `skills/` | `ClaudeMdLoader` + `SkillLoader` | 记忆/技能 |
-| Ink Components | `console/*` 渲染器 | 终端 UI |
+| Ink Components | `console/*` 渲染器 (8个) | 终端 UI |
+| `mcp/*` (22文件) | `mcp/*` (McpClient/Manager/Transport) | MCP 协议 |
+| `plugins/*` (38文件) | `plugin/*` (Plugin/Manager/Context) | 插件系统 |
+| `hooks/*` | `HookManager` | Hook 系统 |
+| `tasks/*` | `TaskManager` + Task工具 | 任务管理 |
 
 ## 📄 License
 

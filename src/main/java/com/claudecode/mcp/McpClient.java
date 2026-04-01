@@ -2,7 +2,6 @@ package com.claudecode.mcp;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,10 +46,10 @@ public class McpClient implements AutoCloseable {
     private final Map<String, McpResource> resources = new ConcurrentHashMap<>();
 
     /** 服务器能力信息 */
-    private JsonNode serverCapabilities;
+    private volatile JsonNode serverCapabilities;
 
     /** 服务器信息 */
-    private JsonNode serverInfo;
+    private volatile JsonNode serverInfo;
 
     /** 是否已完成初始化 */
     private volatile boolean initialized = false;
@@ -165,15 +164,17 @@ public class McpClient implements AutoCloseable {
             JsonNode response = transport.sendRequest(MAPPER.writeValueAsString(request));
             JsonNode result = response.get("result");
             if (result != null && result.has("tools")) {
-                ArrayNode toolsArray = (ArrayNode) result.get("tools");
-                for (JsonNode toolNode : toolsArray) {
-                    String name = toolNode.get("name").asText();
-                    String description = toolNode.has("description")
-                            ? toolNode.get("description").asText() : "";
-                    JsonNode inputSchema = toolNode.get("inputSchema");
+                JsonNode toolsNode = result.get("tools");
+                if (toolsNode != null && toolsNode.isArray()) {
+                    for (JsonNode toolNode : toolsNode) {
+                        String name = toolNode.get("name").asText();
+                        String description = toolNode.has("description")
+                                ? toolNode.get("description").asText() : "";
+                        JsonNode inputSchema = toolNode.get("inputSchema");
 
-                    tools.put(name, new McpTool(name, description, inputSchema));
-                    log.debug("发现 MCP 工具: {} - {}", name, description);
+                        tools.put(name, new McpTool(name, description, inputSchema));
+                        log.debug("发现 MCP 工具: {} - {}", name, description);
+                    }
                 }
             }
         } catch (McpException e) {
@@ -214,17 +215,19 @@ public class McpClient implements AutoCloseable {
             JsonNode response = transport.sendRequest(MAPPER.writeValueAsString(request));
             JsonNode result = response.get("result");
             if (result != null && result.has("resources")) {
-                ArrayNode resourcesArray = (ArrayNode) result.get("resources");
-                for (JsonNode resNode : resourcesArray) {
-                    String uri = resNode.get("uri").asText();
-                    String name = resNode.has("name") ? resNode.get("name").asText() : uri;
-                    String description = resNode.has("description")
-                            ? resNode.get("description").asText() : "";
-                    String mimeType = resNode.has("mimeType")
-                            ? resNode.get("mimeType").asText() : "text/plain";
+                JsonNode resourcesNode = result.get("resources");
+                if (resourcesNode != null && resourcesNode.isArray()) {
+                    for (JsonNode resNode : resourcesNode) {
+                        String uri = resNode.get("uri").asText();
+                        String name = resNode.has("name") ? resNode.get("name").asText() : uri;
+                        String description = resNode.has("description")
+                                ? resNode.get("description").asText() : "";
+                        String mimeType = resNode.has("mimeType")
+                                ? resNode.get("mimeType").asText() : "text/plain";
 
-                    resources.put(uri, new McpResource(uri, name, description, mimeType));
-                    log.debug("发现 MCP 资源: {} ({})", name, uri);
+                        resources.put(uri, new McpResource(uri, name, description, mimeType));
+                        log.debug("发现 MCP 资源: {} ({})", name, uri);
+                    }
                 }
             }
         } catch (McpException e) {
@@ -409,6 +412,8 @@ public class McpClient implements AutoCloseable {
     @Override
     public void close() throws Exception {
         initialized = false;
+        tools.clear();
+        resources.clear();
         transport.close();
         log.info("MCP 客户端 '{}' 已关闭", serverName);
     }

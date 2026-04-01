@@ -10,7 +10,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
 /**
  * MCP 管理器 —— 管理多个 MCP 服务器连接的统一入口。
@@ -165,13 +164,23 @@ public class McpManager implements AutoCloseable {
 
         log.info("连接 MCP 服务器 '{}': {} {}", name, command, String.join(" ", args));
 
-        // 创建传输层并启动
+        // 创建传输层并启动（确保初始化失败时清理资源）
         StdioTransport transport = new StdioTransport(command, args, env);
-        transport.start();
-
-        // 创建客户端并初始化
-        McpClient client = new McpClient(name, transport);
-        client.initialize();
+        McpClient client;
+        try {
+            transport.start();
+            client = new McpClient(name, transport);
+            client.initialize();
+        } catch (Exception e) {
+            // 初始化失败时必须关闭传输层，防止子进程泄漏
+            try {
+                transport.close();
+            } catch (Exception suppressed) {
+                e.addSuppressed(suppressed);
+            }
+            throw (e instanceof McpException mcp) ? mcp
+                    : new McpException("连接 MCP 服务器 '" + name + "' 失败: " + e.getMessage(), e);
+        }
 
         // 注册客户端
         clients.put(name, client);
@@ -239,7 +248,7 @@ public class McpManager implements AutoCloseable {
         return clients.values().stream()
                 .filter(McpClient::isInitialized)
                 .flatMap(client -> client.getTools().stream())
-                .collect(Collectors.toList());
+                .toList();
     }
 
     /**
@@ -265,7 +274,7 @@ public class McpManager implements AutoCloseable {
         return clients.values().stream()
                 .filter(McpClient::isInitialized)
                 .flatMap(client -> client.getResources().stream())
-                .collect(Collectors.toList());
+                .toList();
     }
 
     /**
