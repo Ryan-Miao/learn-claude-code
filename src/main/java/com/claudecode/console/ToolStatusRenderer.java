@@ -18,7 +18,7 @@ public class ToolStatusRenderer {
     /** 渲染工具调用开始 */
     public void renderStart(String toolName, String args) {
         out.println(AnsiStyle.dim("  ─────────────────────────────────────────"));
-        out.print(AnsiStyle.YELLOW + "  ⚙ " + AnsiStyle.BOLD + toolName + AnsiStyle.RESET);
+        out.print(AnsiStyle.YELLOW + "  * " + AnsiStyle.BOLD + toolName + AnsiStyle.RESET);
         out.println(AnsiStyle.dim("  running..."));
         // 如果有简短参数，显示
         if (args != null && !args.isBlank()) {
@@ -37,7 +37,7 @@ public class ToolStatusRenderer {
             display = display.substring(0, 497) + "...";
         }
 
-        out.println(AnsiStyle.GREEN + "  ✓ " + AnsiStyle.BOLD + toolName + AnsiStyle.RESET
+        out.println(AnsiStyle.GREEN + "  [OK] " + AnsiStyle.BOLD + toolName + AnsiStyle.RESET
                 + AnsiStyle.dim("  done"));
         if (display != null && !display.isBlank()) {
             // 缩进输出每一行
@@ -50,7 +50,7 @@ public class ToolStatusRenderer {
 
     /** 渲染工具错误 */
     public void renderError(String toolName, String error) {
-        out.println(AnsiStyle.RED + "  ✗ " + AnsiStyle.BOLD + toolName + AnsiStyle.RESET
+        out.println(AnsiStyle.RED + "  [FAIL] " + AnsiStyle.BOLD + toolName + AnsiStyle.RESET
                 + AnsiStyle.red("  error"));
         if (error != null) {
             out.println(AnsiStyle.red("    " + error));

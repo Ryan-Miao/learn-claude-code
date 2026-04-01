@@ -24,6 +24,6 @@ public class ClearCommand implements SlashCommand {
         if (context.agentLoop() != null) {
             context.agentLoop().reset();
         }
-        return AnsiStyle.green("  ✓ Conversation history cleared.");
+        return AnsiStyle.green("  [OK] Conversation history cleared.");
     }
 }

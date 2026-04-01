@@ -122,6 +122,6 @@ public class GlobTool implements Tool {
 
     @Override
     public String activityDescription(Map<String, Object> input) {
-        return "🔍 Searching " + input.getOrDefault("pattern", "files");
+        return "[Search] " + input.getOrDefault("pattern", "files");
     }
 }

@@ -118,6 +118,6 @@ public class FileReadTool implements Tool {
 
     @Override
     public String activityDescription(Map<String, Object> input) {
-        return "📄 Reading " + input.getOrDefault("file_path", "file");
+        return "[Read] " + input.getOrDefault("file_path", "file");
     }
 }

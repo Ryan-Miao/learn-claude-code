@@ -108,6 +108,6 @@ public class BashTool implements Tool {
         if (cmd.length() > 60) {
             cmd = cmd.substring(0, 57) + "...";
         }
-        return "⚡ " + cmd;
+        return "> " + cmd;
     }
 }

@@ -87,7 +87,7 @@ public class FileEditTool implements Tool {
             long oldLines = oldString.lines().count();
             long newLines = newString.lines().count();
 
-            return "✅ Edited " + path + " (replaced " + oldLines + " lines with " + newLines + " lines)";
+            return "[OK] Edited " + path + " (replaced " + oldLines + " lines with " + newLines + " lines)";
 
         } catch (IOException e) {
             return "Error editing file: " + e.getMessage();
@@ -96,6 +96,6 @@ public class FileEditTool implements Tool {
 
     @Override
     public String activityDescription(Map<String, Object> input) {
-        return "✏️ Editing " + input.getOrDefault("file_path", "file");
+        return "[Edit] " + input.getOrDefault("file_path", "file");
     }
 }
