@@ -51,6 +51,7 @@ public class ReplSession {
     private final MarkdownRenderer markdownRenderer;
     private final SpinnerAnimation spinner;
     private final ThinkingRenderer thinkingRenderer;
+    private final StatusLine statusLine;
 
     /** 对话摘要（取第一次用户输入的前40字） */
     private String conversationSummary = "";
@@ -76,6 +77,7 @@ public class ReplSession {
         this.markdownRenderer = new MarkdownRenderer(out);
         this.spinner = new SpinnerAnimation(out);
         this.thinkingRenderer = new ThinkingRenderer(out);
+        this.statusLine = new StatusLine(out);
 
         setupAgentCallbacks();
         setupToolContextCallbacks();
@@ -177,6 +179,12 @@ public class ReplSession {
 
             // 设置活跃的 reader，供 AskUser 和权限确认使用
             this.activeReader = reader;
+
+            // 非 dumb 终端启用底部状态行
+            boolean isDumb2 = "dumb".equals(terminal.getType());
+            if (!isDumb2) {
+                statusLine.enable(providerInfo.model(), agentLoop.getTokenTracker());
+            }
 
             CommandContext cmdContext = new CommandContext(agentLoop, toolRegistry, out, () -> running = false);
 
@@ -299,6 +307,11 @@ public class ReplSession {
 
             spinner.stop();
             out.println(); // 流式输出结束后换行
+
+            // 刷新底部状态行（显示最新 token 用量）
+            if (statusLine.isEnabled()) {
+                out.println(statusLine.renderInline());
+            }
             out.println();
         } catch (Exception e) {
             spinner.stop();

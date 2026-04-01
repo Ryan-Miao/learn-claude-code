@@ -82,6 +82,9 @@ public class AppConfig {
                 new SkillsCommand(),
                 new MemoryCommand(),
                 new CopyCommand(),
+                new ResumeCommand(),
+                new ExportCommand(),
+                new CommitCommand(),
                 new ExitCommand()
         );
         return registry;
