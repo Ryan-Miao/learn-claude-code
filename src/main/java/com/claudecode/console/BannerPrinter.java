@@ -25,23 +25,23 @@ public class BannerPrinter {
         // 内容宽度（不含左右边框 │）
         int innerWidth = 88;
 
-        // Logo（ASCII 冒烟咖啡杯 — 每行精确 20 字符宽，含左右空格）
+        // Logo（ASCII 冒烟咖啡杯 — 每行精确 19 字符宽）
         String[] logo = {
-                "        ) ) )       ",
-                "     ╭────────╮     ",
-                "     │ ~~~~~~ │─╮   ",
-                "     │ CLAUDE │ │   ",
-                "     │  CODE  │─╯   ",
-                "     ╰─┬────┬─╯     "
+                "       ) ) )       ",
+                "    ╭────────╮     ",
+                "    │ ~~~~~~ │─╮   ",
+                "    │ CLAUDE │ │   ",
+                "    │  CODE  │─╯   ",
+                "    ╰─┬────┬─╯     "
         };
-        int logoVisualWidth = 20;
+        int logoVisualWidth = 19;
 
         // 右侧信息（纯可见文本 + ANSI 颜色）
         String[] rightInfo = {
                 "",
                 AnsiStyle.BOLD + "Welcome!" + AnsiStyle.RESET,
-                "",
-                AnsiStyle.DIM + "Provider: " + AnsiStyle.RESET + AnsiStyle.CYAN + provider.toUpperCase() + AnsiStyle.RESET
+                AnsiStyle.DIM + "API: " + AnsiStyle.RESET + AnsiStyle.CYAN + baseUrl + AnsiStyle.RESET,
+                AnsiStyle.DIM + "Protocol: " + AnsiStyle.RESET + AnsiStyle.CYAN + provider.toUpperCase() + AnsiStyle.RESET
                         + AnsiStyle.DIM + "  Model: " + AnsiStyle.RESET + AnsiStyle.CYAN + model + AnsiStyle.RESET,
                 AnsiStyle.DIM + "Work Dir: " + workDir + AnsiStyle.RESET,
                 AnsiStyle.DIM + "Tools: " + toolCount + " | Commands: " + cmdCount + " | " + termInfo + AnsiStyle.RESET,
