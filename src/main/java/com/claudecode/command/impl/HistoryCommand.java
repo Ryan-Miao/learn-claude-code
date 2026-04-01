@@ -14,12 +14,12 @@ public class HistoryCommand implements SlashCommand {
 
     @Override
     public String name() {
-        return "/history";
+        return "history";
     }
 
     @Override
     public String description() {
-        return "列出保存的对话历史";
+        return "List saved conversation history";
     }
 
     @Override

@@ -39,7 +39,7 @@ public class CompactCommand implements SlashCommand {
 
     @Override
     public String description() {
-        return "用AI摘要压缩对话上下文";
+        return "Compact conversation context with AI summary";
     }
 
     @Override
