@@ -61,7 +61,7 @@ public class ClaudeCodeCompleter implements Completer {
                 if (alias.startsWith(prefix)) {
                     candidates.add(new Candidate(
                             "/" + alias,
-                            alias + " -> " + name,
+                            alias + " → " + name,
                             "Aliases",
                             cmd.description(),
                             null, null, true

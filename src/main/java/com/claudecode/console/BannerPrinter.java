@@ -34,7 +34,7 @@ public class BannerPrinter {
 
         out.println(banner);
         out.println(AnsiStyle.bold("  Claude Code (Java)") + AnsiStyle.dim("  v" + VERSION));
-        out.println(AnsiStyle.dim("  Powered by Spring AI  |  Type /help for commands"));
+        out.println(AnsiStyle.dim("  Powered by Spring AI  •  Type /help for commands"));
         out.println();
     }
 
@@ -43,9 +43,9 @@ public class BannerPrinter {
      */
     public static void printCompact(PrintStream out) {
         out.println();
-        out.println(AnsiStyle.BRIGHT_CYAN + AnsiStyle.BOLD + "  > Claude Code (Java)" + AnsiStyle.RESET
+        out.println(AnsiStyle.BRIGHT_CYAN + AnsiStyle.BOLD + "  ◆ Claude Code (Java)" + AnsiStyle.RESET
                 + AnsiStyle.dim("  v" + VERSION));
-        out.println(AnsiStyle.dim("  Type /help for commands  |  Ctrl+D to exit"));
+        out.println(AnsiStyle.dim("  Type /help for commands  •  Ctrl+D to exit"));
         out.println();
     }
 }

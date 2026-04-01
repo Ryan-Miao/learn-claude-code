@@ -164,6 +164,6 @@ public class GrepTool implements Tool {
 
     @Override
     public String activityDescription(Map<String, Object> input) {
-        return "[Grep] '" + input.getOrDefault("pattern", "...") + "'";
+        return "🔍 Searching for '" + input.getOrDefault("pattern", "...") + "'";
     }
 }

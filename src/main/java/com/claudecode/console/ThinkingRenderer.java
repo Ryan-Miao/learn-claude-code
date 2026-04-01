@@ -22,7 +22,7 @@ public class ThinkingRenderer {
         }
 
         out.println();
-        out.println(AnsiStyle.DIM + AnsiStyle.ITALIC + "  [Thinking...]" + AnsiStyle.RESET);
+        out.println(AnsiStyle.DIM + AnsiStyle.ITALIC + "  💭 Thinking..." + AnsiStyle.RESET);
 
         // 显示 thinking 内容（缩进并用暗色）
         for (String line : thinkingContent.lines().toList()) {
@@ -33,7 +33,7 @@ public class ThinkingRenderer {
 
     /** 渲染 thinking 开始标记 */
     public void renderStart() {
-        out.print(AnsiStyle.DIM + AnsiStyle.ITALIC + "  [Thinking...]" + AnsiStyle.RESET);
+        out.print(AnsiStyle.DIM + AnsiStyle.ITALIC + "  💭 Thinking..." + AnsiStyle.RESET);
     }
 
     /** 渲染 thinking 结束标记 */

@@ -38,7 +38,7 @@ public class ModelCommand implements SlashCommand {
 
         if (args != null && !args.isBlank()) {
             sb.append("\n");
-            sb.append(AnsiStyle.yellow("  [!] Model switching not yet implemented. Set AI_MODEL env variable."));
+            sb.append(AnsiStyle.yellow("  ⚠ Model switching not yet implemented. Set AI_MODEL env variable."));
         }
 
         return sb.toString();

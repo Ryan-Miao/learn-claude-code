@@ -53,7 +53,7 @@ public class MarkdownRenderer {
             }
             // 列表项
             else if (line.stripLeading().startsWith("- ") || line.stripLeading().startsWith("* ")) {
-                out.println("  " + AnsiStyle.CYAN + "-" + AnsiStyle.RESET + " " + renderInline(line.stripLeading().substring(2)));
+                out.println("  " + AnsiStyle.CYAN + "•" + AnsiStyle.RESET + " " + renderInline(line.stripLeading().substring(2)));
             }
             // 分隔线
             else if (line.strip().matches("^-{3,}$") || line.strip().matches("^\\*{3,}$")) {

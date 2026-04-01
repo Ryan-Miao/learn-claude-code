@@ -27,8 +27,8 @@ public class CompactCommand implements SlashCommand {
         if (context.agentLoop() != null) {
             int before = context.agentLoop().getMessageHistory().size();
             context.agentLoop().reset();
-            return AnsiStyle.green("  [OK] Context compacted: " + before + " messages -> 1 (system prompt only)");
+            return AnsiStyle.green("  ✓ Context compacted: " + before + " messages → 1 (system prompt only)");
         }
-        return AnsiStyle.yellow("  [!] No active conversation to compact.");
+        return AnsiStyle.yellow("  ⚠ No active conversation to compact.");
     }
 }

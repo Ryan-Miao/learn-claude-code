@@ -67,9 +67,9 @@ public class FileWriteTool implements Tool {
 
             long lines = content.lines().count();
             if (existed) {
-                return "[OK] Updated " + path + " (" + lines + " lines)";
+                return "✅ Updated " + path + " (" + lines + " lines)";
             } else {
-                return "[OK] Created " + path + " (" + lines + " lines)";
+                return "✅ Created " + path + " (" + lines + " lines)";
             }
 
         } catch (IOException e) {
@@ -79,6 +79,6 @@ public class FileWriteTool implements Tool {
 
     @Override
     public String activityDescription(Map<String, Object> input) {
-        return "[Write] " + input.getOrDefault("file_path", "file");
+        return "✏️ Writing " + input.getOrDefault("file_path", "file");
     }
 }

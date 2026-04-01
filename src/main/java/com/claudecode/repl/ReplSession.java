@@ -154,7 +154,7 @@ public class ReplSession {
                 handleInput(input, cmdContext);
             }
 
-            out.println(AnsiStyle.dim("\n  Goodbye!\n"));
+            out.println(AnsiStyle.dim("\n  Goodbye! 👋\n"));
         }
     }
 
@@ -174,8 +174,8 @@ public class ReplSession {
         out.println(AnsiStyle.dim("  Terminal: " + termInfo));
 
         if (isDumb) {
-            out.println(AnsiStyle.yellow("  [!] Dumb terminal: Tab completion and line editing may be limited"));
-            out.println(AnsiStyle.yellow("      Run in Windows Terminal / PowerShell / cmd.exe for best experience"));
+            out.println(AnsiStyle.yellow("  ⚠ Dumb 终端模式：Tab补全和行编辑可能受限"));
+            out.println(AnsiStyle.yellow("    建议在 Windows Terminal / PowerShell / cmd.exe 中运行"));
         } else {
             out.println(AnsiStyle.dim("  Tip: Tab to complete commands, ↑↓ to browse history, Ctrl+D to exit"));
         }
@@ -211,7 +211,7 @@ public class ReplSession {
             handleInput(input, cmdContext);
         }
 
-        out.println(AnsiStyle.dim("\n  Goodbye!\n"));
+        out.println(AnsiStyle.dim("\n  Goodbye! 👋\n"));
     }
 
     // ==================== 公共输入处理 ====================
@@ -237,7 +237,7 @@ public class ReplSession {
             out.println();
         } catch (Exception e) {
             spinner.stop();
-            out.println(AnsiStyle.red("\n  [ERROR] " + e.getMessage()));
+            out.println(AnsiStyle.red("\n  ✗ Error: " + e.getMessage()));
             log.error("Agent 循环异常", e);
             out.println();
         }
