@@ -132,6 +132,15 @@ public class S11AutonomousAgents implements CommandLineRunner {
         ObjectMapper mapper = new ObjectMapper();
         try {
             Map<String, Object> task = mapper.readValue(path.toFile(), Map.class);
+            // 预校验：防止竞态条件（已被其他人认领或已完成）
+            String status = (String) task.get("status");
+            Object existingOwner = task.get("owner");
+            if (!"pending".equals(status)) {
+                return "Error: Task #" + taskId + " is " + status + " (cannot claim)";
+            }
+            if (existingOwner != null && !existingOwner.toString().isEmpty()) {
+                return "Error: Task #" + taskId + " already claimed by " + existingOwner;
+            }
             task.put("owner", owner);
             task.put("status", "in_progress");
             mapper.writerWithDefaultPrettyPrinter().writeValue(path.toFile(), task);

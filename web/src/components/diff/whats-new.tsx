@@ -122,7 +122,7 @@ export function WhatsNew({ diff }: WhatsNewProps) {
                   {td("loc_delta")}
                 </h3>
                 <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-                  +{diff.locDelta} {td("lines")}
+                  +{diff.locDelta} lines
                 </p>
               </div>
             </Card>

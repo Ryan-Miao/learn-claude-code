@@ -1,29 +1,29 @@
 {
   "version": "s01",
   "title": "The Agent Loop",
-  "description": "A minimal agent that uses tools to accomplish tasks",
+  "description": "A minimal agent that uses only bash to accomplish tasks",
   "steps": [
     {
       "type": "user_message",
-      "content": "Create a file called Hello.java that prints 'Hello, World!'",
+      "content": "Create a file called hello.py that prints 'Hello, World!'",
       "annotation": "User sends a task to the agent"
     },
     {
       "type": "assistant_text",
-      "content": "I'll create that file for you.",
-      "annotation": "The model decides to use write_file tool"
+      "content": "I'll create that file for you using bash.",
+      "annotation": "The model decides to use its only tool: bash"
     },
     {
       "type": "tool_call",
-      "content": "Hello.java\n---\npublic class Hello {\n    public static void main(String[] args) {\n        System.out.println(\"Hello, World!\");\n    }\n}",
-      "toolName": "write_file",
-      "annotation": "Tool call: the model creates a Java source file"
+      "content": "echo 'print(\"Hello, World!\")' > hello.py",
+      "toolName": "bash",
+      "annotation": "Tool call: the model generates a bash command"
     },
     {
       "type": "tool_result",
-      "content": "File written successfully",
-      "toolName": "write_file",
-      "annotation": "File created successfully"
+      "content": "",
+      "toolName": "bash",
+      "annotation": "Bash returns empty output (success)"
     },
     {
       "type": "assistant_text",
@@ -32,20 +32,20 @@
     },
     {
       "type": "tool_call",
-      "content": "cat Hello.java",
+      "content": "cat hello.py",
       "toolName": "bash",
       "annotation": "Another bash call to verify"
     },
     {
       "type": "tool_result",
-      "content": "public class Hello {\n    public static void main(String[] args) {\n        System.out.println(\"Hello, World!\");\n    }\n}",
+      "content": "print(\"Hello, World!\")",
       "toolName": "bash",
       "annotation": "File contents confirmed"
     },
     {
       "type": "assistant_text",
-      "content": "Done! I've created Hello.java with the main method. You can run it with `javac Hello.java && java Hello`.",
-      "annotation": "No more tool calls -> loop breaks, agent responds to user"
+      "content": "Done! I've created hello.py with the print statement. You can run it with `python hello.py`.",
+      "annotation": "stop_reason != 'tool_use' -> loop breaks, agent responds to user"
     }
   ]
 }

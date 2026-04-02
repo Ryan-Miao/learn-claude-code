@@ -14,83 +14,60 @@ MCP servers expose:
 - **Resources**: Data Claude can read (like files or database records)
 - **Prompts**: Pre-built prompt templates
 
-## Quick Start: Java/Spring AI MCP Server
+## Quick Start: Python MCP Server
 
 ### 1. Project Setup
 
 ```bash
-# 使用 Spring Initializr 创建项目
-# 或通过 Maven 手动创建
+# Create project
 mkdir my-mcp-server && cd my-mcp-server
-mvn archetype:generate -DgroupId=com.example -DartifactId=my-mcp-server \
-    -DarchetypeArtifactId=maven-archetype-quickstart -DinteractiveMode=false
-```
+python3 -m venv venv && source venv/bin/activate
 
-在 `pom.xml` 中添加依赖:
-
-```xml
-<dependencies>
-    <dependency>
-        <groupId>org.springframework.ai</groupId>
-        <artifactId>spring-ai-mcp-server-spring-boot-starter</artifactId>
-    </dependency>
-    <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter</artifactId>
-    </dependency>
-</dependencies>
+# Install MCP SDK
+pip install mcp
 ```
 
 ### 2. Basic Server Template
 
-```java
-// src/main/java/com/example/McpServerApplication.java
-package com.example;
+```python
+#!/usr/bin/env python3
+"""my_server.py - A simple MCP server"""
 
-import org.springframework.ai.tool.annotation.Tool;
-import org.springframework.ai.tool.annotation.ToolParam;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.context.annotation.Bean;
+from mcp.server import Server
+from mcp.server.stdio import stdio_server
+from mcp.types import Tool, TextContent
 
-@SpringBootApplication
-public class McpServerApplication {
+# Create server instance
+server = Server("my-server")
 
-    public static void main(String[] args) {
-        SpringApplication.run(McpServerApplication.class, args);
-    }
+# Define a tool
+@server.tool()
+async def hello(name: str) -> str:
+    """Say hello to someone.
 
-    @Bean
-    public MyTools myTools() {
-        return new MyTools();
-    }
-}
+    Args:
+        name: The name to greet
+    """
+    return f"Hello, {name}!"
 
-// 定义工具类
-class MyTools {
+@server.tool()
+async def add_numbers(a: int, b: int) -> str:
+    """Add two numbers together.
 
-    @Tool(description = "Say hello to someone")
-    public String hello(@ToolParam(description = "The name to greet") String name) {
-        return "Hello, " + name + "!";
-    }
+    Args:
+        a: First number
+        b: Second number
+    """
+    return str(a + b)
 
-    @Tool(description = "Add two numbers together")
-    public String addNumbers(
-            @ToolParam(description = "First number") int a,
-            @ToolParam(description = "Second number") int b) {
-        return String.valueOf(a + b);
-    }
-}
-```
+# Run server
+async def main():
+    async with stdio_server() as (read, write):
+        await server.run(read, write)
 
-配置 `application.properties`:
-```properties
-spring.ai.mcp.server.name=my-server
-spring.ai.mcp.server.version=1.0.0
-spring.ai.mcp.server.type=SYNC
-spring.main.web-application-type=none
-spring.main.banner-mode=off
-spring.ai.mcp.server.stdio=true
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(main())
 ```
 
 ### 3. Register with Claude
@@ -100,8 +77,8 @@ Add to `~/.claude/mcp.json`:
 {
   "mcpServers": {
     "my-server": {
-      "command": "java",
-      "args": ["-jar", "/path/to/my-mcp-server/target/my-mcp-server.jar"]
+      "command": "python3",
+      "args": ["/path/to/my_server.py"]
     }
   }
 }
@@ -163,95 +140,74 @@ server.connect(transport);
 
 ### External API Integration
 
-```java
-import org.springframework.ai.tool.annotation.Tool;
-import org.springframework.ai.tool.annotation.ToolParam;
-import org.springframework.web.client.RestTemplate;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+```python
+import httpx
+from mcp.server import Server
 
-public class WeatherTools {
+server = Server("weather-server")
 
-    private final RestTemplate restTemplate = new RestTemplate();
-    private final ObjectMapper objectMapper = new ObjectMapper();
-
-    @Tool(description = "Get current weather for a city")
-    public String getWeather(@ToolParam(description = "City name") String city) {
-        String url = "https://api.weatherapi.com/v1/current.json?key=YOUR_API_KEY&q=" + city;
-        String response = restTemplate.getForObject(url, String.class);
-        JsonNode data = objectMapper.readTree(response);
-        JsonNode current = data.get("current");
-        return String.format("%s: %s°C, %s",
-                city, current.get("temp_c"), current.get("condition").get("text").asText());
-    }
-}
+@server.tool()
+async def get_weather(city: str) -> str:
+    """Get current weather for a city."""
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            f"https://api.weatherapi.com/v1/current.json",
+            params={"key": "YOUR_API_KEY", "q": city}
+        )
+        data = resp.json()
+        return f"{city}: {data['current']['temp_c']}C, {data['current']['condition']['text']}"
 ```
 
 ### Database Access
 
-```java
-import org.springframework.ai.tool.annotation.Tool;
-import org.springframework.ai.tool.annotation.ToolParam;
-import org.springframework.jdbc.core.JdbcTemplate;
+```python
+import sqlite3
+from mcp.server import Server
 
-public class DatabaseTools {
+server = Server("db-server")
 
-    private final JdbcTemplate jdbcTemplate;
+@server.tool()
+async def query_db(sql: str) -> str:
+    """Execute a read-only SQL query."""
+    if not sql.strip().upper().startswith("SELECT"):
+        return "Error: Only SELECT queries allowed"
 
-    public DatabaseTools(JdbcTemplate jdbcTemplate) {
-        this.jdbcTemplate = jdbcTemplate;
-    }
-
-    @Tool(description = "Execute a read-only SQL query")
-    public String queryDb(@ToolParam(description = "SQL query to execute") String sql) {
-        if (!sql.trim().toUpperCase().startsWith("SELECT")) {
-            return "Error: Only SELECT queries allowed";
-        }
-        var rows = jdbcTemplate.queryForList(sql);
-        return rows.toString();
-    }
-}
+    conn = sqlite3.connect("data.db")
+    cursor = conn.execute(sql)
+    rows = cursor.fetchall()
+    conn.close()
+    return str(rows)
 ```
 
 ### Resources (Read-only Data)
 
-```java
-import org.springframework.ai.tool.annotation.Tool;
-import java.nio.file.Files;
-import java.nio.file.Path;
+```python
+@server.resource("config://settings")
+async def get_settings() -> str:
+    """Application settings."""
+    return open("settings.json").read()
 
-public class ResourceTools {
-
-    @Tool(description = "Read application settings")
-    public String getSettings() throws Exception {
-        return Files.readString(Path.of("settings.json"));
-    }
-
-    @Tool(description = "Read a file from the workspace")
-    public String readFile(@ToolParam(description = "Path to the file") String path) throws Exception {
-        return Files.readString(Path.of(path));
-    }
-}
+@server.resource("file://{path}")
+async def read_file(path: str) -> str:
+    """Read a file from the workspace."""
+    return open(path).read()
 ```
 
 ## Testing
 
 ```bash
-# Build the project
-mvn clean package -DskipTests
-
 # Test with MCP Inspector
-npx @anthropics/mcp-inspector java -jar target/my-mcp-server.jar
+npx @anthropics/mcp-inspector python3 my_server.py
 
 # Or send test messages directly
-echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | java -jar target/my-mcp-server.jar
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | python3 my_server.py
 ```
 
 ## Best Practices
 
-1. **Clear tool descriptions**: Claude uses `@Tool(description=...)` to decide when to call tools
-2. **Input validation**: Always validate and sanitize inputs in tool methods
-3. **Error handling**: Return meaningful error messages, use proper exception handling
-4. **Use Spring DI**: Leverage Spring's dependency injection for service wiring
+1. **Clear tool descriptions**: Claude uses these to decide when to call tools
+2. **Input validation**: Always validate and sanitize inputs
+3. **Error handling**: Return meaningful error messages
+4. **Async by default**: Use async/await for I/O operations
 5. **Security**: Never expose sensitive operations without auth
 6. **Idempotency**: Tools should be safe to retry

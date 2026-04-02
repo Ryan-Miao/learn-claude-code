@@ -109,12 +109,12 @@ The pattern is universal. Only the capabilities change.
 - `references/agent-philosophy.md` - Deep dive into why agents work
 
 **Implementation**:
-- `references/MinimalAgent.java` - Complete working agent (基于 Spring AI ChatClient)
-- `references/ToolTemplates.java` - Capability definitions (使用 `@Tool` 注解)
-- `references/SubagentPattern.java` - Context isolation
+- `references/minimal-agent.py` - Complete working agent (~80 lines)
+- `references/tool-templates.py` - Capability definitions
+- `references/subagent-pattern.py` - Context isolation
 
 **Scaffolding**:
-- `scripts/init-agent.sh` - Generate new Spring Boot agent project via `mvn archetype:generate`
+- `scripts/init_agent.py` - Generate new agent projects
 
 ## The Agent Mindset
 

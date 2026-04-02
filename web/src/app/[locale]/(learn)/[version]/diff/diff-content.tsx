@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { useLocale, useTranslations } from "@/lib/i18n";
+import { useLocale } from "@/lib/i18n";
 import { VERSION_META } from "@/lib/constants";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { LayerBadge } from "@/components/ui/badge";
@@ -19,8 +19,6 @@ interface DiffPageContentProps {
 
 export function DiffPageContent({ version }: DiffPageContentProps) {
   const locale = useLocale();
-  const tMeta = useTranslations("version_meta");
-  const td = useTranslations("diff");
   const meta = VERSION_META[version];
 
   const { currentVersion, prevVersion, diff } = useMemo(() => {
@@ -34,9 +32,9 @@ export function DiffPageContent({ version }: DiffPageContentProps) {
   if (!meta || !currentVersion) {
     return (
       <div className="py-12 text-center">
-        <p className="text-zinc-500">{td("version_not_found")}</p>
+        <p className="text-zinc-500">Version not found.</p>
         <Link href={`/${locale}/timeline`} className="mt-4 inline-block text-sm text-blue-600 hover:underline">
-          {td("back_to_timeline")}
+          Back to timeline
         </Link>
       </div>
     );
@@ -50,11 +48,11 @@ export function DiffPageContent({ version }: DiffPageContentProps) {
           className="mb-6 inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
         >
           <ArrowLeft size={14} />
-          {td("back_to")} {meta.title}
+          Back to {meta.title}
         </Link>
         <h1 className="text-3xl font-bold">{meta.title}</h1>
         <p className="mt-4 text-zinc-500">
-          {td("first_version_hint")}
+          This is the first version -- there is no previous version to compare against.
         </p>
       </div>
     );
@@ -69,7 +67,7 @@ export function DiffPageContent({ version }: DiffPageContentProps) {
         className="mb-6 inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
       >
         <ArrowLeft size={14} />
-        {td("back_to")} {meta.title}
+        Back to {meta.title}
       </Link>
 
       {/* Header */}
@@ -88,14 +86,14 @@ export function DiffPageContent({ version }: DiffPageContentProps) {
           <CardHeader>
             <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400">
               <FileCode size={16} />
-              <span className="text-sm">{td("loc_delta")}</span>
+              <span className="text-sm">LOC Delta</span>
             </div>
           </CardHeader>
           <CardTitle>
             <span className={diff.locDelta >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
               {diff.locDelta >= 0 ? "+" : ""}{diff.locDelta}
             </span>
-            <span className="ml-2 text-sm font-normal text-zinc-500">{td("lines")}</span>
+            <span className="ml-2 text-sm font-normal text-zinc-500">lines</span>
           </CardTitle>
         </Card>
 
@@ -103,7 +101,7 @@ export function DiffPageContent({ version }: DiffPageContentProps) {
           <CardHeader>
             <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400">
               <Wrench size={16} />
-              <span className="text-sm">{td("new_tools")}</span>
+              <span className="text-sm">New Tools</span>
             </div>
           </CardHeader>
           <CardTitle>
@@ -124,7 +122,7 @@ export function DiffPageContent({ version }: DiffPageContentProps) {
           <CardHeader>
             <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400">
               <Box size={16} />
-              <span className="text-sm">{td("new_classes")}</span>
+              <span className="text-sm">New Classes</span>
             </div>
           </CardHeader>
           <CardTitle>
@@ -145,7 +143,7 @@ export function DiffPageContent({ version }: DiffPageContentProps) {
           <CardHeader>
             <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400">
               <FunctionSquare size={16} />
-              <span className="text-sm">{td("new_functions")}</span>
+              <span className="text-sm">New Functions</span>
             </div>
           </CardHeader>
           <CardTitle>
@@ -168,7 +166,7 @@ export function DiffPageContent({ version }: DiffPageContentProps) {
         <Card className="border-l-4 border-l-red-300 dark:border-l-red-700">
           <CardHeader>
             <CardTitle>{prevMeta?.title || prevVersion.id}</CardTitle>
-            <p className="text-sm text-zinc-500">{tMeta(`${prevVersion.id}.subtitle`)}</p>
+            <p className="text-sm text-zinc-500">{prevMeta?.subtitle}</p>
           </CardHeader>
           <div className="space-y-1 text-sm text-zinc-600 dark:text-zinc-400">
             <p>{prevVersion.loc} LOC</p>
@@ -179,7 +177,7 @@ export function DiffPageContent({ version }: DiffPageContentProps) {
         <Card className="border-l-4 border-l-green-300 dark:border-l-green-700">
           <CardHeader>
             <CardTitle>{meta.title}</CardTitle>
-            <p className="text-sm text-zinc-500">{tMeta(`${version}.subtitle`)}</p>
+            <p className="text-sm text-zinc-500">{meta.subtitle}</p>
           </CardHeader>
           <div className="space-y-1 text-sm text-zinc-600 dark:text-zinc-400">
             <p>{currentVersion.loc} LOC</p>
@@ -191,7 +189,7 @@ export function DiffPageContent({ version }: DiffPageContentProps) {
 
       {/* Code Diff */}
       <div>
-        <h2 className="mb-4 text-xl font-semibold">{td("source_diff")}</h2>
+        <h2 className="mb-4 text-xl font-semibold">Source Code Diff</h2>
         <CodeDiff
           oldSource={prevVersion.source}
           newSource={currentVersion.source}

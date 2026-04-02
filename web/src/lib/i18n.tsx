@@ -9,12 +9,12 @@ type Messages = typeof en;
 const messagesMap: Record<string, Messages> = { en, zh, ja };
 
 const I18nContext = createContext<{ locale: string; messages: Messages }>({
-  locale: "zh",
-  messages: zh,
+  locale: "en",
+  messages: en,
 });
 
 export function I18nProvider({ locale, children }: { locale: string; children: ReactNode }) {
-  const messages = messagesMap[locale] || zh;
+  const messages = messagesMap[locale] || en;
   return (
     <I18nContext.Provider value={{ locale, messages }}>
       {children}
@@ -27,13 +27,7 @@ export function useTranslations(namespace?: string) {
   return (key: string) => {
     const ns = namespace ? (messages as any)[namespace] : messages;
     if (!ns) return key;
-    const parts = key.split(".");
-    let result: any = ns;
-    for (const part of parts) {
-      result = result?.[part];
-      if (result === undefined) return key;
-    }
-    return typeof result === "string" ? result : key;
+    return (ns as any)[key] || key;
   };
 }
 

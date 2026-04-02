@@ -158,6 +158,18 @@ public class TaskManager {
                 Set<Integer> merged = new LinkedHashSet<>(current);
                 merged.addAll(addBlockedBy);
                 task.put("blockedBy", new ArrayList<>(merged));
+                // 双向关系：更新阻塞方的 blocks 列表
+                for (int blockerId : addBlockedBy) {
+                    try {
+                        Map<String, Object> blocker = load(blockerId);
+                        List<Integer> blockerBlocks = (List<Integer>) blocker.get("blocks");
+                        if (!blockerBlocks.contains(taskId)) {
+                            blockerBlocks.add(taskId);
+                            save(blocker);
+                        }
+                    } catch (Exception ignored) {
+                    }
+                }
             }
 
             if (addBlocks != null && !addBlocks.isEmpty()) {

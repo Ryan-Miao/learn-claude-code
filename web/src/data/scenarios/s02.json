@@ -5,7 +5,7 @@
   "steps": [
     {
       "type": "user_message",
-      "content": "Add a method called greet(String name) to Hello.java",
+      "content": "Add a function called greet(name) to hello.py",
       "annotation": "User requests a code modification"
     },
     {
@@ -15,19 +15,19 @@
     },
     {
       "type": "tool_call",
-      "content": "Hello.java",
+      "content": "hello.py",
       "toolName": "read_file",
       "annotation": "Dedicated read tool provides cleaner file access"
     },
     {
       "type": "tool_result",
-      "content": "public class Hello {\n    public static void main(String[] args) {\n        System.out.println(\"Hello, World!\");\n    }\n}",
+      "content": "print(\"Hello, World!\")",
       "toolName": "read_file",
       "annotation": "File contents returned to the model"
     },
     {
       "type": "tool_call",
-      "content": "Hello.java\n---\npublic class Hello {\n    public static void greet(String name) {\n        System.out.println(\"Hello, \" + name + \"!\");\n    }\n\n    public static void main(String[] args) {\n        greet(\"World\");\n    }\n}",
+      "content": "hello.py\n---\ndef greet(name):\n    print(f\"Hello, {name}!\")\n\ngreet(\"World\")",
       "toolName": "write_file",
       "annotation": "write_file replaces the entire file content"
     },
@@ -39,7 +39,7 @@
     },
     {
       "type": "assistant_text",
-      "content": "I've updated Hello.java with a greet(String name) method that takes a name parameter.",
+      "content": "I've updated hello.py with a greet(name) function that takes a name parameter.",
       "annotation": "4 tools beat 1: each tool has a clear, focused purpose"
     }
   ]

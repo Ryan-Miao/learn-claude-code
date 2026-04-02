@@ -126,8 +126,9 @@ public class ContextCompactor {
             String conversationText = history.stream()
                     .map(t -> t.role() + ": " + t.content())
                     .reduce("", (a, b) -> a + "\n" + b);
+            // 保留最新的内容（tail），丢弃最早的
             if (conversationText.length() > 80000) {
-                conversationText = conversationText.substring(0, 80000);
+                conversationText = conversationText.substring(conversationText.length() - 80000);
             }
 
             ChatClient summaryClient = ChatClient.builder(aiConfig.get()).build();

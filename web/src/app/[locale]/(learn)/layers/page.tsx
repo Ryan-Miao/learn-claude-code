@@ -30,8 +30,6 @@ const LAYER_HEADER_BG: Record<string, string> = {
 
 export default function LayersPage() {
   const t = useTranslations("layers");
-  const tLayer = useTranslations("layer_labels");
-  const tMeta = useTranslations("version_meta");
   const locale = useLocale();
 
   return (
@@ -65,7 +63,7 @@ export default function LayersPage() {
                   <h2 className="text-xl font-bold">
                     <span className="text-zinc-400 dark:text-zinc-600">L{index + 1}</span>
                     {" "}
-                    {tLayer(layer.id)}
+                    {layer.label}
                   </h2>
                   <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
                     {t(layer.id)}
@@ -94,7 +92,7 @@ export default function LayersPage() {
                             </h3>
                             {meta?.subtitle && (
                               <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-                                {tMeta(`${id}.subtitle`)}
+                                {meta.subtitle}
                               </p>
                             )}
                           </div>
@@ -109,7 +107,7 @@ export default function LayersPage() {
                         </div>
                         {meta?.keyInsight && (
                           <p className="mt-2 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400 line-clamp-2">
-                            {tMeta(`${id}.keyInsight`)}
+                            {meta.keyInsight}
                           </p>
                         )}
                       </Card>
