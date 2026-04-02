@@ -330,6 +330,69 @@ internalCall() 第 3 轮:
 
 > **注意**: 循环不是用 `while` 实现的，而是用**递归**。`internalCall` 在检测到 tool_use 后调用自身，把工具结果作为新的对话历史传进去。这种方式比 while 更适合累积 token 用量统计（通过 `previousChatResponse` 参数层层传递）。
 
+### 循环退出的两个条件
+
+看 `AnthropicChatModel.internalCall()` 的完整逻辑（`AnthropicChatModel.java:206-222`），循环退出有两条路径：
+
+```java
+// 条件 1：AI 根本没返回 tool_use → 直接退出
+if (this.toolExecutionEligibilityPredicate.isToolExecutionRequired(prompt.getOptions(), response)) {
+
+    var toolExecutionResult = this.toolCallingManager.executeToolCalls(prompt, response);
+
+    // 条件 2：工具标记了 returnDirect=true → 直接返回工具结果
+    if (toolExecutionResult.returnDirect()) {
+        return ChatResponse.builder()
+            .from(response)
+            .generations(ToolExecutionResult.buildGenerations(toolExecutionResult))
+            .build();
+    }
+    // 否则：继续递归
+    else {
+        return this.internalCall(new Prompt(toolExecutionResult.conversationHistory(), ...), response);
+    }
+}
+
+// ← 条件 1 走到这里：AI 返回纯文本，循环结束
+return response;
+```
+
+**条件 1：`isToolExecutionRequired() == false`**（绝大多数情况）
+
+AI 自己决定任务完成了，返回纯文本而不是 `tool_use`。这是循环退出的主要方式。
+
+```
+internalCall() 第 N 轮:
+  HTTP → Anthropic: 完整历史
+  HTTP ← Anthropic: "任务已完成，文件已创建。"    ← 纯文本，没有 tool_use
+  isToolExecutionRequired() → false
+  return response  ← 退出
+```
+
+**条件 2：`returnDirect() == true`**（少见）
+
+工具的元数据声明了 `returnDirect = true`，意味着工具的结果本身就是最终答案，不需要再发给 AI 让它总结。
+
+```
+假设有一个搜索工具标记了 returnDirect=true:
+
+internalCall() 第 1 轮:
+  HTTP → Anthropic: "今天北京天气如何？"
+  HTTP ← Anthropic: tool_use(get_weather, "北京")
+  executeToolCalls() → get_weather("北京") → "晴天，25°C"
+  toolExecutionResult.returnDirect() → true    ← 工具说"我的结果就是最终答案"
+  return "晴天，25°C"  ← 直接返回，不再问 AI
+```
+
+**谁控制退出？**
+
+| 条件 | 谁决定的 | 含义 | 频率 |
+|---|---|---|---|
+| `isToolExecutionRequired() == false` | **AI 自己** | AI 不再调用工具，返回纯文本 | 绝大多数情况 |
+| `returnDirect == true` | **工具开发者** | 工具结果直接作为最终答案，跳过 AI | 少见（需要工具声明） |
+
+正常情况下，循环的退出完全由 AI 控制——AI 觉得任务完成了，就返回纯文本而不是 `tool_use`，循环自动结束。`returnDirect` 是工具开发者的一个 opt-in 开关，用于"工具的结果本身就是答案，不需要 AI 再总结一遍"的场景。
+
 ## 变更内容
 
 | 组件          | 之前       | 之后                                             |
