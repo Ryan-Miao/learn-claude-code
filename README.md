@@ -25,13 +25,14 @@
 - 🌿 **Git 上下文** — 自动收集分支、状态、最近提交
 
 ### P0 核心增强
-- 🔒 **权限确认** — 危险操作（文件写入、Bash执行）前要求用户确认 [Y/n/always]
+- 🔒 **多级权限管理** — 5 种模式（DEFAULT/ACCEPT_EDITS/BYPASS/DONT_ASK/PLAN），规则引擎自动评估，30+ 危险命令检测，Y/A/N/D 四选项 UI，拒绝追踪（连续 3 次 / 累计 20 次自动降级）
+- 🗜️ **三层上下文压缩** — 微压缩（tool result 截断 + 时间感知）→ Session Memory（AI 摘要保留近期段）→ 全量压缩（PTL gap 解析 + 熔断器），93% 自动触发
 - 💭 **Thinking 显示** — 展示 AI 思考过程（Anthropic extended thinking）
 - 🔍 **WebSearch** — DuckDuckGo 网络搜索（无需 API Key）
 - ❓ **AskUser** — AI 在执行过程中向用户提问
 
 ### P1 体验增强
-- 📊 **底部状态行** — 持续显示模型、Token、费用、工作目录
+- 📊 **底部状态行** — 持续显示模型、Token、费用、工作目录、token 使用率（4 级颜色：绿→黄→红→⚠闪烁）
 - 🪝 **Hook 系统** — PreToolUse/PostToolUse/PrePrompt/PostResponse 4 种钩子
 - 🎨 **代码语法高亮** — 支持 Java/JS/TS/Python/Bash/SQL 6 种语言
 - ⌨️ **Vim 模式** — JLine vi 编辑模式（`CLAUDE_CODE_VIM=1` 启用）
@@ -148,7 +149,7 @@ mvn spring-boot:run
 |------|------|------|
 | `/help` | | 显示所有可用命令 |
 | `/clear` | | 清屏 |
-| `/compact` | | AI 摘要压缩对话上下文 |
+| `/compact` | | AI 摘要压缩对话上下文（委托三层压缩系统） |
 | `/cost` | | 显示 Token 使用量和费用 |
 | `/model [name]` | | 查看/切换模型 |
 | `/status` | | 显示会话状态 |
@@ -325,6 +326,39 @@ export CLAUDE_CODE_VIM=1
 
 启用后 Banner 会显示 `[vim]` 标识，输入行支持 vi 按键绑定。
 
+### 权限管理
+
+通过 `/config` 命令管理权限：
+
+```
+❯ /config permission-mode default      # 默认模式（逐次确认）
+❯ /config permission-mode accept-edits # 自动允许文件编辑
+❯ /config permission-mode bypass       # 跳过所有权限检查
+❯ /config permission-mode dont-ask     # 自动拒绝所有操作
+❯ /config permission-mode plan         # 计划模式（只读操作允许，写操作拒绝）
+❯ /config permission-list              # 查看已保存的权限规则
+❯ /config permission-reset             # 清除所有权限规则
+```
+
+权限规则持久化位置：
+- 用户级：`~/.claude-code-java/settings.json`（跨项目生效）
+- 项目级：`.claude-code-java/settings.json`（项目特定）
+
+权限确认 UI（工具调用时自动弹出）：
+
+```
+⚠ Permission Required
+──────────────────────────────────────────
+Tool: Bash
+Action: npm install express
+──────────────────────────────────────────
+[Y] Allow once
+[A] Always allow Bash(npm:*)
+[N] Deny once
+[D] Always deny this pattern
+Choice [Y/a/n/d]:
+```
+
 ### Hook 系统
 
 通过代码注册 Hook 来拦截工具调用：
@@ -355,11 +389,17 @@ com.claudecode
 ├── config/
 │   └── AppConfig                  // Bean 装配、Provider 切换、组件注册
 ├── core/
-│   ├── AgentLoop                  // Agent 循环（阻塞 + 流式 + Hook集成）
-│   ├── TokenTracker               // Token 使用追踪
+│   ├── AgentLoop                  // Agent 循环（阻塞 + 流式 + Hook + 权限 + 自动压缩）
+│   ├── TokenTracker               // Token 使用追踪 + 上下文窗口监控（93%/82%/98% 阈值）
 │   ├── ConversationPersistence    // 对话持久化
 │   ├── HookManager                // Hook 系统（4种钩子类型）
-│   └── TaskManager                // 后台任务管理
+│   ├── TaskManager                // 后台任务管理
+│   └── compact/                   // 三层压缩子系统
+│       ├── AutoCompactManager     // 压缩编排（micro→session→full + 熔断器）
+│       ├── MicroCompact           // 微压缩（tool result 截断 + 时间感知）
+│       ├── SessionMemoryCompact   // Session Memory 压缩（AI 摘要 + 保留段）
+│       ├── FullCompact            // 全量压缩（PTL gap 解析 + API Round 分组）
+│       └── CompactionResult       // 压缩结果记录
 ├── tool/
 │   ├── Tool                       // 工具协议接口
 │   ├── ToolRegistry               // 工具注册中心
@@ -401,6 +441,12 @@ com.claudecode
 │   ├── PluginContext              // 插件上下文
 │   ├── PluginManager              // 插件加载/管理
 │   └── OutputStylePlugin          // 内置输出样式插件
+├── permission/                    // 多级权限子系统
+│   ├── PermissionTypes            // 权限类型（行为/模式/规则/决策/选择）
+│   ├── PermissionRuleEngine       // 规则引擎（7 步评估链）
+│   ├── PermissionSettings         // 持久化（用户/项目/会话三级）
+│   ├── DangerousPatterns          // 30+ 危险命令模式检测
+│   └── DenialTracker              // 拒绝追踪（连续 3 / 累计 20 阈值）
 └── repl/
     ├── ReplSession                // REPL 会话管理
     └── ClaudeCodeCompleter        // Tab 补全
@@ -415,9 +461,47 @@ com.claudecode
                         ↓
               逐token实时输出到终端
                         ↓
-              检测工具调用 → PreToolUse Hook → 权限确认 → 执行工具 → PostToolUse Hook → 结果回传
+              检测工具调用 → PreToolUse Hook → 权限规则引擎评估 → 执行工具 → PostToolUse Hook → 结果回传
+                        ↓                        ↓
+              自动压缩检查 ←─────────  权限 UI（Y/A/N/D）
+                        ↓
+              TokenTracker 阈值监控 → 微压缩 → Session Memory → 全量压缩（兜底）
                         ↓
               继续循环或结束
+```
+
+### 权限评估链
+
+```
+工具调用 → PermissionRuleEngine.evaluate()
+              │
+              ├── ① BYPASS 模式 → 直接 ALLOW
+              ├── ② PLAN 模式 → 只读 ALLOW，写操作 DENY
+              ├── ③ alwaysDeny 规则匹配 → DENY
+              ├── ④ alwaysAllow 规则匹配 → ALLOW
+              ├── ⑤ readOnly 工具 → ALLOW
+              ├── ⑥ ACCEPT_EDITS / DONT_ASK 模式 → 对应行为
+              ├── ⑦ DangerousPatterns 检测 → 标记为危险
+              └── ⑧ 默认 → ASK（UI 确认）
+                       ↓
+              用户选择 → applyChoice() → 持久化规则
+```
+
+### 三层压缩架构
+
+```
+AutoCompactManager.autoCompactIfNeeded()
+    │
+    ├── TokenTracker.shouldAutoCompact()  (>93%)
+    │       ↓
+    ├── ① MicroCompact — 本地截断（无 API 调用）
+    │       保留最近 6 条 tool result，时间感知（>10min 仅保留 2 条）
+    │       ↓
+    ├── ② SessionMemoryCompact — AI 摘要（1 次 API 调用）
+    │       保留 10K-40K token 近期段，4/3 安全系数，不拆分 tool 对
+    │       ↓
+    └── ③ FullCompact — 全量压缩（兜底，多次 API 调用）
+            API Round 分组 → PTL gap 解析 → 逐步丢弃 → 熔断器（3 次失败停止）
 ```
 
 ### MCP 协议架构
@@ -488,6 +572,7 @@ claude-code:
 | `AI_MODEL` | ❌ | 模型名称 | 按提供者不同 |
 | `AI_MAX_TOKENS` | ❌ | 最大 Token 数 | `8096` |
 | `CLAUDE_CODE_VIM` | ❌ | 启用 Vim 编辑模式 | `0` |
+| `CLAUDE_CODE_CONTEXT_WINDOW` | ❌ | 上下文窗口大小 | `200000` |
 
 ## 🔧 开发
 
@@ -521,6 +606,8 @@ java -jar target/claude-code-java-0.1.0-SNAPSHOT.jar
 | `commands.ts` | `SlashCommand` + `impl/*` (28个) | 命令系统 |
 | `context.ts` + `prompts.ts` | `SystemPromptBuilder` + loaders | 上下文 |
 | `CLAUDE.md` + `skills/` | `ClaudeMdLoader` + `SkillLoader` | 记忆/技能 |
+| `compact/*` (microCompact/sessionCompact/fullCompact) | `core/compact/*` (5个) | 三层压缩 |
+| `permissions/*` (permissionCheck/ruleEngine) | `permission/*` (5个) | 权限管理 |
 | Ink Components | `console/*` 渲染器 (8个) | 终端 UI |
 | `mcp/*` (22文件) | `mcp/*` (McpClient/Manager/Transport) | MCP 协议 |
 | `plugins/*` (38文件) | `plugin/*` (Plugin/Manager/Context) | 插件系统 |
