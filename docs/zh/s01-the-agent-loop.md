@@ -728,3 +728,57 @@ for (AssistantMessage.ToolCall toolCall : assistantMessage.getToolCalls()) {
 | **Strategy** | `ChatModel` 接口 | 多 AI 供应商的透明切换 |
 | **Observer** | Micrometer Observation | 无侵入的可观测性埋点 |
 | **Recursive + Callback** | `internalCall()` + `ToolCallback` | 工具循环和工具执行的解耦 |
+
+### Spring AI 2.0 新特性：内置 Provider 选择
+
+Spring AI 2.0 引入了统一属性 `spring.ai.model.chat`，可以指定激活哪个 AI 供应商的自动配置：
+
+```yaml
+# 只激活 OpenAI 自动配置，Anthropic 自动配置被跳过
+spring:
+  ai:
+    model:
+      chat: openai   # 可选值: openai, anthropic, ollama, deepseek 等
+```
+
+原理：每个 auto-configuration 都有 `@ConditionalOnProperty` 条件：
+
+```java
+// OpenAiChatAutoConfiguration
+@ConditionalOnProperty(name = "spring.ai.model.chat",
+                       havingValue = "openai",
+                       matchIfMissing = true)  // 未设置时也激活
+
+// AnthropicChatAutoConfiguration
+@ConditionalOnProperty(name = "spring.ai.model.chat",
+                       havingValue = "anthropic",
+                       matchIfMissing = true)  // 未设置时也激活
+```
+
+**注意**：两个都有 `matchIfMissing = true`，所以不设置时两个都会尝试激活，可能导致 bean 冲突。
+
+**我们项目的做法**：我们的 `AiConfig` 注入了两个 `ChatModel` bean，通过 `ai.provider` 属性在运行时切换。这比 `spring.ai.model.chat` 更灵活——后者只能选择激活哪个自动配置，而我们的方式允许同时使用两个 provider。
+
+```java
+// 我们的 AiConfig：运行时切换 provider
+@Component
+public class AiConfig {
+    @Autowired
+    public AiConfig(@Qualifier("anthropicChatModel") ChatModel anthropicChatModel,
+                            @Qualifier("openAiChatModel") ChatModel openAiChatModel) {
+        modelMap.put("openai", openAiChatModel);
+        modelMap.put("anthropic", anthropicChatModel);
+    }
+
+    public ChatModel get() {
+        return modelMap.get(aiProvider);  // 根据 ai.provider 属性返回
+    }
+}
+```
+
+**对比**：
+
+| 方式 | 场景 | 限制 |
+|---|---|---|
+| `spring.ai.model.chat` | 只用一个 provider | 只能选一个，不能运行时切换 |
+| 自定义 `AiConfig` | 需要运行时切换 | 需要两个 provider 都配好 API key |

@@ -122,6 +122,63 @@ AgentRunner.interactive("s02", userMessage ->
 )
 ```
 
+## 值得关注的设计细节
+
+### 工具粒度的三个层次
+
+s02 的 4 个工具展示了 AI Agent 工具从粗到细的设计层次：
+
+| 工具 | 粒度 | 特点 |
+|---|---|---|
+| `BashTool` | **万能** | 什么都能干，但输出不可控、不安全 |
+| `WriteFileTool` | **文件级** | 整个文件覆盖写入，简单粗暴 |
+| `EditFileTool` | **片段级** | 查找替换，精准修改，不破坏文件其他部分 |
+| `ReadFileTool` | **只读** | 零风险，支持行数限制 |
+
+关键架构决策：**通过增加专用工具来扩展能力，而不是给万能工具加更多功能**。每个工具职责单一，安全校验独立。
+
+### `@Tool` description 直接影响 AI 的工具选择准确率
+
+```java
+@Tool(description = "Replace exact text in a file. Only the first occurrence is replaced.")
+public String editFile(
+        @ToolParam(description = "Relative path to the file") String path,
+        @ToolParam(description = "The exact text to find") String oldText,
+        @ToolParam(description = "The replacement text") String newText) {
+```
+
+Spring AI 会把 `@Tool` 和 `@ToolParam` 的 description 转成 JSON Schema 发给 AI。AI 根据这段描述决定什么时候调、传什么参数。所以 description 写得好不好直接决定 AI 的工具选择准确率。
+
+### EditFileTool 为什么用 `indexOf` 而不用 `replaceFirst`
+
+```java
+// 实际代码 —— 字符串精确匹配
+int index = content.indexOf(oldText);
+String updated = content.substring(0, index) + newText + content.substring(index + oldText.length());
+```
+
+`replaceFirst()` 接受正则表达式。AI 传入的 `oldText` 可能包含 `.`、`*`、`$` 等正则特殊字符，导致匹配结果不可预测。用 `indexOf + substring` 做纯字符串匹配，避免正则陷阱。这也是"不信任 AI 输入"的一个具体体现。
+
+### PathValidator — 路径安全防护
+
+所有文件工具都通过 `PathValidator` 校验路径，防止 AI 传入 `../../etc/passwd` 之类的逃逸路径：
+
+```java
+public Path resolve(String relativePath) {
+    Path resolved = workDir.resolve(relativePath).toAbsolutePath().normalize();
+    if (!resolved.startsWith(workDir)) {
+        throw new IllegalArgumentException("Path escapes workspace: " + relativePath);
+    }
+    return resolved;
+}
+```
+
+核心原理：`resolve` 后再 `normalize`，用 `startsWith(workDir)` 校验。和 Python 版的 `safe_path()` 逻辑完全一致。
+
+> AI Agent 安全的两个基本功（s01 + s02）：
+> - s01 `BashTool`：危险命令黑名单 + 超时 + 输出截断
+> - s02 `PathValidator`：路径逃逸防护
+
 ## 试一试
 
 ```sh
