@@ -175,7 +175,7 @@ AgentRunner.interactive("s06", userMessage -> {
 
 ```sh
 cd learn-claude-code
-mvn exec:java -Dexec.mainClass=io.mybatis.learn.s06.S06ContextCompact
+mvn exec:java -Dexec.mainClass=com.demo.learn.s06.S06ContextCompact
 ```
 
 试试这些 prompt (英文 prompt 对 LLM 效果更好, 也可以用中文):

@@ -122,7 +122,7 @@ public String taskUpdate(
 4. **Spring AI auto-registers tools**: Pass `TaskManager` as a `defaultTools` argument to `ChatClient`. Spring AI automatically recognizes `@Tool` annotated methods -- no manual dispatch map needed.
 
 ```java
-@SpringBootApplication(scanBasePackages = "io.mybatis.learn.core")
+@SpringBootApplication(scanBasePackages = "com.demo.learn.core")
 public class S07TaskSystem implements CommandLineRunner {
 
     private final ChatClient chatClient;
@@ -159,7 +159,7 @@ From s07 onward, the task graph is the default for multi-step work. s03's Todo r
 
 ```sh
 cd learn-claude-code
-mvn exec:java -Dexec.mainClass=io.mybatis.learn.s07.S07TaskSystem
+mvn exec:java -Dexec.mainClass=com.demo.learn.s07.S07TaskSystem
 ```
 
 Try these prompts (English prompts work better with LLMs, but Chinese also works):

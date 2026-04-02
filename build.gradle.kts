@@ -38,7 +38,7 @@ tasks.named("bootJar") { enabled = false }
 tasks.named("resolveMainClassName") { enabled = false }
 tasks.named("jar") { enabled = true }
 
-// 支持 mvn exec:java 风格: ./gradlew run -PmainClass=io.mybatis.learn.s01.S01AgentLoop
+// 支持 mvn exec:java 风格: ./gradlew run -PmainClass=com.demo.learn.s01.S01AgentLoop
 tasks.register<JavaExec>("run") {
     group = "application"
     description = "Run a specific main class (use -PmainClass=...)"

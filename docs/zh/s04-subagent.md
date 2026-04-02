@@ -92,7 +92,7 @@ public String task(
 
 ```sh
 cd learn-claude-code
-mvn exec:java -Dexec.mainClass=io.mybatis.learn.s04.S04Subagent
+mvn exec:java -Dexec.mainClass=com.demo.learn.s04.S04Subagent
 ```
 
 试试这些 prompt (英文 prompt 对 LLM 效果更好, 也可以用中文):

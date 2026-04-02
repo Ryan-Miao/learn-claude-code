@@ -273,13 +273,13 @@ $env:AI_MODEL="deepseek-chat"
 
 ```sh
 # 从第一课开始
-mvn exec:java -Dexec.mainClass=io.mybatis.learn.s01.S01AgentLoop
+mvn exec:java -Dexec.mainClass=com.demo.learn.s01.S01AgentLoop
 
 # 完整递进终点
-mvn exec:java -Dexec.mainClass=io.mybatis.learn.s12.S12WorktreeIsolation
+mvn exec:java -Dexec.mainClass=com.demo.learn.s12.S12WorktreeIsolation
 
 # 总纲: 全部机制合一
-mvn exec:java -Dexec.mainClass=io.mybatis.learn.full.SFullAgent
+mvn exec:java -Dexec.mainClass=com.demo.learn.full.SFullAgent
 ```
 
 ### Web Platform

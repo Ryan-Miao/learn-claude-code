@@ -163,7 +163,7 @@ protected void teammateLoop(String name, String role, String initialPrompt) {
 
 ```sh
 cd learn-claude-code
-mvn exec:java -Dexec.mainClass=io.mybatis.learn.s09.S09AgentTeams
+mvn exec:java -Dexec.mainClass=com.demo.learn.s09.S09AgentTeams
 ```
 
 试试这些 prompt (英文 prompt 对 LLM 效果更好, 也可以用中文):

@@ -154,7 +154,7 @@ public class AgentRunner {
 ### 5. 完全な Agent クラスとして組み立て
 
 ```java
-@SpringBootApplication(scanBasePackages = "io.mybatis.learn.core")
+@SpringBootApplication(scanBasePackages = "com.demo.learn.core")
 public class S01AgentLoop implements CommandLineRunner {
 
     private final ChatClient chatClient;
@@ -355,7 +355,7 @@ AgentRunner.interactive("s01", userMessage ->
 
 ```sh
 cd learn-claude-code
-mvn exec:java -Dexec.mainClass=io.mybatis.learn.s01.S01AgentLoop
+mvn exec:java -Dexec.mainClass=com.demo.learn.s01.S01AgentLoop
 ```
 
 > 実行前に環境変数の設定が必要: `AI_API_KEY`, `AI_BASE_URL`, `AI_MODEL`

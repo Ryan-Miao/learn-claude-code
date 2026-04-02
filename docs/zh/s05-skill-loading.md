@@ -144,7 +144,7 @@ public S05SkillLoading(ChatModel chatModel) {
 
 ```sh
 cd learn-claude-code
-mvn exec:java -Dexec.mainClass=io.mybatis.learn.s05.S05SkillLoading
+mvn exec:java -Dexec.mainClass=com.demo.learn.s05.S05SkillLoading
 ```
 
 试试这些 prompt (英文 prompt 对 LLM 效果更好, 也可以用中文):

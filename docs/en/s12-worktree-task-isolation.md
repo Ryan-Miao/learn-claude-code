@@ -134,7 +134,7 @@ After a crash, state reconstructs from `.tasks/` + `.worktrees/index.json` on di
 
 ```sh
 cd learn-claude-code
-mvn exec:java -Dexec.mainClass=io.mybatis.learn.s12.S12WorktreeIsolation
+mvn exec:java -Dexec.mainClass=com.demo.learn.s12.S12WorktreeIsolation
 ```
 
 Try these prompts (English prompts work better with LLMs, but Chinese also works):

@@ -122,7 +122,7 @@ public String reviewPlan(String requestId, boolean approve, String feedback) {
 
 ```sh
 cd learn-claude-code
-mvn exec:java -Dexec.mainClass=io.mybatis.learn.s10.S10TeamProtocols
+mvn exec:java -Dexec.mainClass=com.demo.learn.s10.S10TeamProtocols
 ```
 
 以下のプロンプトを試してみよう (英語プロンプトの方が LLM に効果的だが、日本語でも可):

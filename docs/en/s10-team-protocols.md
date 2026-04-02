@@ -122,7 +122,7 @@ One FSM, two applications. The same `pending -> approved | rejected` state machi
 
 ```sh
 cd learn-claude-code
-mvn exec:java -Dexec.mainClass=io.mybatis.learn.s10.S10TeamProtocols
+mvn exec:java -Dexec.mainClass=com.demo.learn.s10.S10TeamProtocols
 ```
 
 Try these prompts (English prompts work better with LLMs, but Chinese also works):

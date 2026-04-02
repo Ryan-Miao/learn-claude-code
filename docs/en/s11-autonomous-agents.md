@@ -181,7 +181,7 @@ ChatClient client = ChatClient.builder(chatModel)
 
 ```sh
 cd learn-claude-code
-mvn exec:java -Dexec.mainClass=io.mybatis.learn.s11.S11AutonomousAgents
+mvn exec:java -Dexec.mainClass=com.demo.learn.s11.S11AutonomousAgents
 ```
 
 Try these prompts (English prompts work better with LLMs, but Chinese also works):

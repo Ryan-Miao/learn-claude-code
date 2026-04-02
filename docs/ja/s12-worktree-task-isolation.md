@@ -134,7 +134,7 @@ public String remove(String name, boolean force, boolean completeTask) {
 
 ```sh
 cd learn-claude-code
-mvn exec:java -Dexec.mainClass=io.mybatis.learn.s12.S12WorktreeIsolation
+mvn exec:java -Dexec.mainClass=com.demo.learn.s12.S12WorktreeIsolation
 ```
 
 以下のプロンプトを試してみよう (英語プロンプトの方が LLM に効果的だが、日本語でも可):

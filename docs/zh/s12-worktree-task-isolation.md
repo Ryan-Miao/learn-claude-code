@@ -134,7 +134,7 @@ public String remove(String name, boolean force, boolean completeTask) {
 
 ```sh
 cd learn-claude-code
-mvn exec:java -Dexec.mainClass=io.mybatis.learn.s12.S12WorktreeIsolation
+mvn exec:java -Dexec.mainClass=com.demo.learn.s12.S12WorktreeIsolation
 ```
 
 试试这些 prompt (英文 prompt 对 LLM 效果更好, 也可以用中文):

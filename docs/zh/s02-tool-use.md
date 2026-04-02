@@ -183,7 +183,7 @@ public Path resolve(String relativePath) {
 
 ```sh
 cd learn-claude-code
-mvn exec:java -Dexec.mainClass=io.mybatis.learn.s02.S02ToolUse
+mvn exec:java -Dexec.mainClass=com.demo.learn.s02.S02ToolUse
 ```
 
 > 运行前需设置环境变量: `AI_API_KEY`, `AI_BASE_URL`, `AI_MODEL`

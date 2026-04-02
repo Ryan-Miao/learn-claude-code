@@ -92,7 +92,7 @@ The subagent may have run multiple tool calls, but its entire message history is
 
 ```sh
 cd learn-claude-code
-mvn exec:java -Dexec.mainClass=io.mybatis.learn.s04.S04Subagent
+mvn exec:java -Dexec.mainClass=com.demo.learn.s04.S04Subagent
 ```
 
 Try these prompts (English prompts work better with LLMs, but Chinese also works):

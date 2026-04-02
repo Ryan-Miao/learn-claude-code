@@ -126,7 +126,7 @@ AgentRunner.interactive("s02", userMessage ->
 
 ```sh
 cd learn-claude-code
-mvn exec:java -Dexec.mainClass=io.mybatis.learn.s02.S02ToolUse
+mvn exec:java -Dexec.mainClass=com.demo.learn.s02.S02ToolUse
 ```
 
 > 実行前に環境変数の設定が必要: `AI_API_KEY`, `AI_BASE_URL`, `AI_MODEL`

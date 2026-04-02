@@ -154,7 +154,7 @@ public class AgentRunner {
 ### 5. 组装为完整的 Agent 类
 
 ```java
-@SpringBootApplication(scanBasePackages = "io.mybatis.learn.core")
+@SpringBootApplication(scanBasePackages = "com.demo.learn.core")
 public class S01AgentLoop implements CommandLineRunner {
 
     private final ChatClient chatClient;
@@ -418,7 +418,7 @@ AgentRunner.interactive("s01", userMessage ->
 
 ```sh
 cd learn-claude-code
-mvn exec:java -Dexec.mainClass=io.mybatis.learn.s01.S01AgentLoop
+mvn exec:java -Dexec.mainClass=com.demo.learn.s01.S01AgentLoop
 ```
 
 > 运行前需设置环境变量: `AI_API_KEY`, `AI_BASE_URL`, `AI_MODEL`
@@ -729,12 +729,14 @@ for (AssistantMessage.ToolCall toolCall : assistantMessage.getToolCalls()) {
 | **Observer** | Micrometer Observation | 无侵入的可观测性埋点 |
 | **Recursive + Callback** | `internalCall()` + `ToolCallback` | 工具循环和工具执行的解耦 |
 
-### Spring AI 2.0 新特性：内置 Provider 选择
+### Spring AI 2.0 新特性：内置 Provider 选择（了解即可，本项目未使用）
 
-Spring AI 2.0 引入了统一属性 `spring.ai.model.chat`，可以指定激活哪个 AI 供应商的自动配置：
+> 以下介绍 Spring AI 2.0 框架自带的 provider 选择机制。**我们项目没有使用这个功能**，而是用了自定义的 `AiConfig`（见下方），因为我们需要运行时动态切换。
+
+Spring AI 2.0 在 auto-configuration 层引入了统一属性 `spring.ai.model.chat`，可以控制激活哪个 AI 供应商的自动配置。这个属性定义在框架内部（`SpringAIModelProperties.java`），不是我们的配置文件。
 
 ```yaml
-# 只激活 OpenAI 自动配置，Anthropic 自动配置被跳过
+# 如果你的项目只用一个 provider，可以这样写（本项目不需要）
 spring:
   ai:
     model:
@@ -744,20 +746,20 @@ spring:
 原理：每个 auto-configuration 都有 `@ConditionalOnProperty` 条件：
 
 ```java
-// OpenAiChatAutoConfiguration
+// OpenAiChatAutoConfiguration（框架源码，非我们项目代码）
 @ConditionalOnProperty(name = "spring.ai.model.chat",
                        havingValue = "openai",
-                       matchIfMissing = true)  // 未设置时也激活
+                       matchIfMissing = true)
 
 // AnthropicChatAutoConfiguration
 @ConditionalOnProperty(name = "spring.ai.model.chat",
                        havingValue = "anthropic",
-                       matchIfMissing = true)  // 未设置时也激活
+                       matchIfMissing = true)
 ```
 
-**注意**：两个都有 `matchIfMissing = true`，所以不设置时两个都会尝试激活，可能导致 bean 冲突。
+注意两个都有 `matchIfMissing = true`——不设置时两个都会尝试激活。
 
-**我们项目的做法**：我们的 `AiConfig` 注入了两个 `ChatModel` bean，通过 `ai.provider` 属性在运行时切换。这比 `spring.ai.model.chat` 更灵活——后者只能选择激活哪个自动配置，而我们的方式允许同时使用两个 provider。
+**为什么我们没用它**：`spring.ai.model.chat` 只能选择激活哪个自动配置，是"编译时"选择。我们的 `AiConfig` 可以运行时切换 provider：
 
 ```java
 // 我们的 AiConfig：运行时切换 provider
@@ -780,5 +782,5 @@ public class AiConfig {
 
 | 方式 | 场景 | 限制 |
 |---|---|---|
-| `spring.ai.model.chat` | 只用一个 provider | 只能选一个，不能运行时切换 |
-| 自定义 `AiConfig` | 需要运行时切换 | 需要两个 provider 都配好 API key |
+| `spring.ai.model.chat`（框架内置） | 只用一个 provider | 只能选一个，不能运行时切换 |
+| 自定义 `AiConfig`（我们用的） | 需要运行时切换 | 需要两个 provider 都配好 API key |

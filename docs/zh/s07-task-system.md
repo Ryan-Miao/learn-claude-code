@@ -122,7 +122,7 @@ public String taskUpdate(
 4. **Spring AI 自动注册工具**: 将 `TaskManager` 作为 `defaultTools` 传入 `ChatClient`，Spring AI 自动识别 `@Tool` 注解方法，无需手动 dispatch map。
 
 ```java
-@SpringBootApplication(scanBasePackages = "io.mybatis.learn.core")
+@SpringBootApplication(scanBasePackages = "com.demo.learn.core")
 public class S07TaskSystem implements CommandLineRunner {
 
     private final ChatClient chatClient;
@@ -159,7 +159,7 @@ public class S07TaskSystem implements CommandLineRunner {
 
 ```sh
 cd learn-claude-code
-mvn exec:java -Dexec.mainClass=io.mybatis.learn.s07.S07TaskSystem
+mvn exec:java -Dexec.mainClass=com.demo.learn.s07.S07TaskSystem
 ```
 
 试试这些 prompt (英文 prompt 对 LLM 效果更好, 也可以用中文):

@@ -144,7 +144,7 @@ public S05SkillLoading(ChatModel chatModel) {
 
 ```sh
 cd learn-claude-code
-mvn exec:java -Dexec.mainClass=io.mybatis.learn.s05.S05SkillLoading
+mvn exec:java -Dexec.mainClass=com.demo.learn.s05.S05SkillLoading
 ```
 
 以下のプロンプトを試してみよう (英語プロンプトの方が LLM に効果的だが、日本語でも可):

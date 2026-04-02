@@ -115,13 +115,13 @@ $env:AI_MODEL="deepseek-chat"
 
 ```sh
 # 从第一课开始
-./gradlew run -PmainClass=io.mybatis.learn.s01.S01AgentLoop
+./gradlew run -PmainClass=com.demo.learn.s01.S01AgentLoop
 
 # 完整递进终点
-./gradlew run -PmainClass=io.mybatis.learn.s12.S12WorktreeIsolation
+./gradlew run -PmainClass=com.demo.learn.s12.S12WorktreeIsolation
 
 # 总纲: 全部机制合一
-./gradlew run -PmainClass=io.mybatis.learn.full.SFullAgent
+./gradlew run -PmainClass=com.demo.learn.full.SFullAgent
 ```
 
 ### Web 学习平台

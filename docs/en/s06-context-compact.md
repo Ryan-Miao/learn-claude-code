@@ -175,7 +175,7 @@ Full history is preserved on disk via transcripts. Nothing is truly lost -- just
 
 ```sh
 cd learn-claude-code
-mvn exec:java -Dexec.mainClass=io.mybatis.learn.s06.S06ContextCompact
+mvn exec:java -Dexec.mainClass=com.demo.learn.s06.S06ContextCompact
 ```
 
 Try these prompts (English prompts work better with LLMs, but Chinese also works):

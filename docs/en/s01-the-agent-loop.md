@@ -154,7 +154,7 @@ Workflow: `Scanner` reads input → `handler.apply()` sends to Agent → print r
 ### 5. Assembled into a Complete Agent Class
 
 ```java
-@SpringBootApplication(scanBasePackages = "io.mybatis.learn.core")
+@SpringBootApplication(scanBasePackages = "com.demo.learn.core")
 public class S01AgentLoop implements CommandLineRunner {
 
     private final ChatClient chatClient;
@@ -355,7 +355,7 @@ AgentRunner.interactive("s01", userMessage ->
 
 ```sh
 cd learn-claude-code
-mvn exec:java -Dexec.mainClass=io.mybatis.learn.s01.S01AgentLoop
+mvn exec:java -Dexec.mainClass=com.demo.learn.s01.S01AgentLoop
 ```
 
 > Set environment variables before running: `AI_API_KEY`, `AI_BASE_URL`, `AI_MODEL`

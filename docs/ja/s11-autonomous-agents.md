@@ -181,7 +181,7 @@ ChatClient client = ChatClient.builder(chatModel)
 
 ```sh
 cd learn-claude-code
-mvn exec:java -Dexec.mainClass=io.mybatis.learn.s11.S11AutonomousAgents
+mvn exec:java -Dexec.mainClass=com.demo.learn.s11.S11AutonomousAgents
 ```
 
 以下のプロンプトを試してみよう (英語プロンプトの方が LLM に効果的だが、日本語でも可):

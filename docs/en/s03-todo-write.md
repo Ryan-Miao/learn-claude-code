@@ -110,7 +110,7 @@ The "only one in_progress at a time" constraint forces sequential focus. Continu
 
 ```sh
 cd learn-claude-code
-mvn exec:java -Dexec.mainClass=io.mybatis.learn.s03.S03TodoWrite
+mvn exec:java -Dexec.mainClass=com.demo.learn.s03.S03TodoWrite
 ```
 
 Try these prompts (English prompts work better with LLMs, but Chinese also works):

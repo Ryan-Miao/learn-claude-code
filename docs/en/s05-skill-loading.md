@@ -144,7 +144,7 @@ The model learns what skills exist (cheap) and loads them when relevant (expensi
 
 ```sh
 cd learn-claude-code
-mvn exec:java -Dexec.mainClass=io.mybatis.learn.s05.S05SkillLoading
+mvn exec:java -Dexec.mainClass=com.demo.learn.s05.S05SkillLoading
 ```
 
 Try these prompts (English prompts work better with LLMs, but Chinese also works):

@@ -126,7 +126,7 @@ Add a tool = add a `@Tool` class + pass it to `defaultTools()`. The loop never c
 
 ```sh
 cd learn-claude-code
-mvn exec:java -Dexec.mainClass=io.mybatis.learn.s02.S02ToolUse
+mvn exec:java -Dexec.mainClass=com.demo.learn.s02.S02ToolUse
 ```
 
 > Set environment variables before running: `AI_API_KEY`, `AI_BASE_URL`, `AI_MODEL`

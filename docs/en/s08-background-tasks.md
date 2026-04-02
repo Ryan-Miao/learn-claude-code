@@ -128,7 +128,7 @@ The loop stays single-threaded. Only subprocess I/O is parallelized.
 
 ```sh
 cd learn-claude-code
-mvn exec:java -Dexec.mainClass=io.mybatis.learn.s08.S08BackgroundTasks
+mvn exec:java -Dexec.mainClass=com.demo.learn.s08.S08BackgroundTasks
 ```
 
 Try these prompts (English prompts work better with LLMs, but Chinese also works):
