@@ -118,7 +118,21 @@ Java 高亮需要额外支持的关键字：`public`, `private`, `protected`, `c
 - `<` 和 `>` 需要用 `&lt;` 和 `&gt;`
 - `{` 和 `}` 在 JSX 文本中需要用 `{"{"}` 或模板字符串包裹
 
-**推荐做法：** 使用模板字符串 `{`...`}` 包裹整个代码块，避免 JSX 特殊字符问题。
+**推荐做法：** 使用模板字符串 `{`...`}` 包裹代码文本，然后用 `highlightJavaLine()` 逐行着色，兼顾 Turbopack 兼容性和语法高亮：
+
+```tsx
+import { highlightJavaLine } from "@/components/code/source-viewer";
+
+<pre className="... text-zinc-300">
+  <code>
+    {code.split("\n").map((line, i) => (
+      <span key={i}>{highlightJavaLine(line)}{"\n"}</span>
+    ))}
+  </code>
+</pre>
+```
+
+**⚠️ 踩坑记录：** 纯模板字符串 `{`code`}` 虽然解决了 JSX 特殊字符问题，但会丢失全部语法高亮，且文字颜色继承 body 导致亮色模式下黑字黑底不可见。必须同时加 `text-zinc-300`（或类似的浅色文字类）和使用 `highlightJavaLine` 着色。
 
 ## 快速恢复流程
 
@@ -167,3 +181,4 @@ claude-learn/src/main/java/com/demo/learn/
 
 - 2026-03-23: 上游合并覆盖 Java 改造，恢复 extract-content.ts、source-viewer.tsx、page.tsx
 - 2026-03-23: 新建此文档，总结合并调整流程
+- 2026-04-04: 首页代码块高亮丢失修复：纯模板字符串会丢高亮+亮色模式黑字黑底，改用 highlightJavaLine() + text-zinc-300
