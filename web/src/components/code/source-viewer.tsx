@@ -13,7 +13,7 @@ function detectLanguage(filename: string): "java" | "python" {
 }
 
 // Java syntax highlighting
-function highlightJavaLine(line: string): React.ReactNode[] {
+export function highlightJavaLine(line: string): React.ReactNode[] {
   const trimmed = line.trimStart();
 
   // Single-line comments

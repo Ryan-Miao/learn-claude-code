@@ -6,6 +6,7 @@ import { LEARNING_PATH, VERSION_META, LAYERS } from "@/lib/constants";
 import { LayerBadge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { highlightJavaLine } from "@/components/code/source-viewer";
 import versionsData from "@/data/generated/versions.json";
 import { MessageFlow } from "@/components/architecture/message-flow";
 
@@ -77,7 +78,7 @@ export default function HomePage() {
             <span className="h-3 w-3 rounded-full bg-green-500/70" />
             <span className="ml-3 text-xs text-zinc-500">S01AgentLoop.java</span>
           </div>
-          <pre className="overflow-x-auto p-4 text-sm leading-relaxed">
+          <pre className="overflow-x-auto p-4 text-sm leading-relaxed text-zinc-300">
             <code>
 {`@Override
 public void run(String... args) {
@@ -93,7 +94,7 @@ public void run(String... args) {
         messages.addAll(handleToolCalls(response));
     }
   }
-`}</code>
+`.split("\n").map((line, i) => <span key={i}>{highlightJavaLine(line)}{"\n"}</span>)}</code>
           </pre>
         </div>
       </section>
