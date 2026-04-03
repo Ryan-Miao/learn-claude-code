@@ -79,75 +79,21 @@ export default function HomePage() {
           </div>
           <pre className="overflow-x-auto p-4 text-sm leading-relaxed">
             <code>
-              <span className="text-zinc-500">@Override</span>
-              {"\n"}
-              <span className="text-blue-400">public void</span>
-              <span className="text-zinc-300"> </span>
-              <span className="text-blue-400">run</span>
-              <span className="text-zinc-500">(</span>
-              <span className="text-cyan-400">String</span>
-              <span className="text-zinc-500">... </span>
-              <span className="text-zinc-300">args</span>
-              <span className="text-zinc-500">) {</span>
-              {"\n"}
-              <span className="text-zinc-300">{"    "}</span>
-              <span className="text-blue-400">var</span>
-              <span className="text-zinc-300"> scanner = </span>
-              <span className="text-blue-400">new</span>
-              <span className="text-zinc-300"> </span>
-              <span className="text-cyan-400">Scanner</span>
-              <span className="text-zinc-500">(</span>
-              <span className="text-zinc-300">System.in</span>
-              <span className="text-zinc-500">);</span>
-              {"\n"}
-              <span className="text-zinc-300">{"    "}</span>
-              <span className="text-blue-400">var</span>
-              <span className="text-zinc-300"> messages = </span>
-              <span className="text-blue-400">new</span>
-              <span className="text-zinc-300"> </span>
-              <span className="text-cyan-400">ArrayList</span>
-              <span className="text-zinc-500">&lt;&gt;();</span>
-              {"\n"}
-              <span className="text-zinc-300">{"    "}</span>
-              <span className="text-blue-400">while</span>
-              <span className="text-zinc-300"> (</span>
-              <span className="text-blue-400">true</span>
-              <span className="text-zinc-300">) {</span>
-              {"\n"}
-              <span className="text-zinc-300">{"        "}</span>
-              <span className="text-blue-400">var</span>
-              <span className="text-zinc-300"> response = chatClient</span>
-              {"\n"}
-              <span className="text-zinc-300">{"            "}.</span>
-              <span className="text-blue-400">prompt</span>
-              <span className="text-zinc-500">()</span>
-              <span className="text-zinc-300">.</span>
-              <span className="text-blue-400">user</span>
-              <span className="text-zinc-500">(</span>
-              <span className="text-zinc-300">msg</span>
-              <span className="text-zinc-500">)</span>
-              <span className="text-zinc-300">.</span>
-              <span className="text-blue-400">call</span>
-              <span className="text-zinc-500">()</span>
-              {"\n"}
-              <span className="text-zinc-300">{"            "}.chatResponse();</span>
-              {"\n"}
-              <span className="text-zinc-300">{"        "}</span>
-              <span className="text-blue-400">if</span>
-              <span className="text-zinc-300"> (!response.hasToolCalls()) </span>
-              <span className="text-blue-400">break</span>
-              <span className="text-zinc-500">;</span>
-              {"\n"}
-              <span className="text-zinc-300">{"        "}messages.addAll(</span>
-              <span className="text-blue-400">handleToolCalls</span>
-              <span className="text-zinc-500">(</span>
-              <span className="text-zinc-300">response</span>
-              <span className="text-zinc-500">));</span>
-              {"\n"}
-              <span className="text-zinc-300">{"    "}}</span>
-              {"\n"}
-              <span className="text-zinc-500">{"}"}</span>
-            </code>
+{`@Override
+public void run(String... args) {
+    var scanner = new Scanner(System.in);
+    var messages = new ArrayList<>();
+    while (true) {
+        var response = chatClient
+            .prompt()
+            .user(msg)
+            .call()
+            .chatResponse();
+        if (!response.hasToolCalls()) break;
+        messages.addAll(handleToolCalls(response));
+    }
+  }
+`}</code>
           </pre>
         </div>
       </section>
