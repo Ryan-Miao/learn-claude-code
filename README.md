@@ -30,7 +30,7 @@ Claude Code = Agent Loop + @Tool + Context Compression + SubAgent + TaskSystem +
 | **`@Tool` 注解** | Spring AI 自动完成工具调用循环，无需手写 while |
 | **Java 25 虚拟线程** | 轻量级并发，实现后台任务与多智能体协作 |
 | **源码追踪** | 文档深入到 Spring AI 框架源码，理解递归循环、Advisor Chain 等设计模式 |
-| **每课独立可运行** | `./gradlew run -PmainClass=...` 一行命令启动 |
+| **每课独立可运行** | `./gradlew :claude-learn:run -PmainClass=...` 一行命令启动 |
 
 ## 12 课递进路线
 
@@ -115,13 +115,13 @@ $env:AI_MODEL="deepseek-chat"
 
 ```sh
 # 从第一课开始
-./gradlew run -PmainClass=com.demo.learn.s01.S01AgentLoop
+./gradlew :claude-learn:run -PmainClass=com.demo.learn.s01.S01AgentLoop
 
 # 完整递进终点
-./gradlew run -PmainClass=com.demo.learn.s12.S12WorktreeIsolation
+./gradlew :claude-learn:run -PmainClass=com.demo.learn.s12.S12WorktreeIsolation
 
 # 总纲: 全部机制合一
-./gradlew run -PmainClass=com.demo.learn.full.SFullAgent
+./gradlew :claude-learn:run -PmainClass=com.demo.learn.full.SFullAgent
 ```
 
 ### Web 学习平台

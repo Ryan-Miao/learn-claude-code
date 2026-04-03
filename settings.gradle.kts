@@ -8,3 +8,5 @@ pluginManagement {
 }
 
 rootProject.name = "learn-claude-code"
+
+include("claude-learn")
