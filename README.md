@@ -97,19 +97,45 @@ cd learn-claude-code
 ./gradlew build
 ```
 
-### 设置环境变量
+### 配置模型 API Key
 
 ```sh
-# Linux / macOS
-export AI_API_KEY=your-api-key
-export AI_BASE_URL=https://api.deepseek.com    # 替换为你的模型服务商地址
-export AI_MODEL=deepseek-chat                   # 替换为你使用的模型名称
-
-# Windows PowerShell
-$env:AI_API_KEY="your-api-key"
-$env:AI_BASE_URL="https://api.deepseek.com"
-$env:AI_MODEL="deepseek-chat"
+# 复制示例配置
+cp claude-learn/src/main/resources/application-local.yml.example \
+   claude-learn/src/main/resources/application-local.yml
 ```
+
+编辑 `application-local.yml`，选择一个 Provider 填入你的 Key 即可：
+
+```yaml
+# 方式一：Anthropic 协议（智谱、MiniMax 等）
+spring:
+  ai:
+    anthropic:
+      api-key: your-api-key
+      base-url: https://open.bigmodel.cn/api/anthropic  # 替换为你的服务商地址
+      chat:
+        options:
+          model: glm-5-turbo                              # 替换为你的模型名称
+ai:
+  provider: anthropic
+
+# 方式二：OpenAI 协议（DeepSeek、通义千问等）
+# spring:
+#   ai:
+#     openai:
+#       api-key: your-api-key
+#       base-url: https://api.deepseek.com
+#       chat:
+#         options:
+#           model: deepseek-chat
+# ai:
+#   provider: openai
+```
+
+> `application-local.yml` 已被 `.gitignore` 排除，不会被提交。
+
+也可通过环境变量覆盖：`AI_API_KEY`、`AI_BASE_URL`、`AI_MODEL`。
 
 ### 运行课程
 
@@ -139,17 +165,19 @@ cd web && npm install && npm run dev   # http://localhost:3000
 ```
 learn-claude-code/
 |
-|-- src/main/java/io/mybatis/learn/   # Java 实现 (Spring AI + Spring Boot)
-|   |-- core/                         #   公共工具类 (AgentRunner, BashTool 等)
-|   |-- core/config/                  #   AiConfig 多 Provider 切换
-|   |-- core/tools/                   #   BashTool, ReadFileTool, WriteFileTool, EditFileTool
-|   |-- s01/ ~ s12/                   #   12 课递进
-|   +-- full/                         #   总纲: 全部机制合一
+|-- claude-learn/                         # Gradle 子模块
+|   |-- src/main/java/com/demo/learn/     #   Java 实现 (Spring AI + Spring Boot)
+|   |   |-- core/                         #     公共工具类 (AgentRunner, BashTool 等)
+|   |   |-- core/config/                  #     AiConfig 多 Provider 切换
+|   |   |-- core/tools/                   #     BashTool, ReadFileTool, WriteFileTool, EditFileTool
+|   |   |-- s01/ ~ s12/                   #     12 课递进
+|   |   +-- full/                         #     总纲: 全部机制合一
+|   +-- src/main/resources/              #   application-local.yml.example
 |
-|-- docs/{en,zh,ja}/                  # 文档 (3 种语言, 含源码追踪)
-|-- web/                              # 交互式学习平台 (Next.js)
-|-- skills/                           # s05 的 Skill 文件
-+-- build.gradle.kts                  # Spring Boot 4.0.4 + Spring AI 2.0.0-M4
+|-- docs/{en,zh,ja}/                      # 文档 (3 种语言, 含源码追踪)
+|-- web/                                  # 交互式学习平台 (Next.js)
+|-- skills/                               # s05 的 Skill 文件
++-- settings.gradle.kts                   # include("claude-learn")
 ```
 
 ## 文档亮点
