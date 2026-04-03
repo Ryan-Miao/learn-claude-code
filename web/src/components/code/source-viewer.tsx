@@ -7,7 +7,88 @@ interface SourceViewerProps {
   filename: string;
 }
 
-function highlightLine(line: string): React.ReactNode[] {
+function detectLanguage(filename: string): "java" | "python" {
+  if (filename.endsWith(".java")) return "java";
+  return "python";
+}
+
+// Java syntax highlighting
+function highlightJavaLine(line: string): React.ReactNode[] {
+  const trimmed = line.trimStart();
+
+  // Single-line comments
+  if (trimmed.startsWith("//")) {
+    return [
+      <span key={0} className="text-zinc-400 italic">
+        {line}
+      </span>,
+    ];
+  }
+
+  // Annotations
+  if (trimmed.startsWith("@")) {
+    return [
+      <span key={0} className="text-amber-400">
+        {line}
+      </span>,
+    ];
+  }
+
+  // Multi-line comment start
+  if (trimmed.startsWith("/*") || trimmed.startsWith("*")) {
+    return [
+      <span key={0} className="text-zinc-400 italic">
+        {line}
+      </span>,
+    ];
+  }
+
+  const keywordSet = new Set([
+    "public", "private", "protected", "class", "interface", "extends", "implements",
+    "return", "if", "else", "while", "for", "do", "switch", "case", "default",
+    "break", "continue", "new", "try", "catch", "finally", "throw", "throws",
+    "import", "package", "static", "final", "abstract", "void", "this", "super",
+    "null", "true", "false", "instanceof", "var", "record", "enum", "sealed",
+    "permits", "assert",
+  ]);
+
+  const typeSet = new Set([
+    "String", "int", "long", "double", "float", "boolean", "byte", "short", "char",
+    "List", "Map", "Set", "Optional", "var", "void",
+  ]);
+
+  const parts = line.split(
+    /(\b(?:public|private|protected|class|interface|extends|implements|return|if|else|while|for|do|switch|case|default|break|continue|new|try|catch|finally|throw|throws|import|package|static|final|abstract|void|this|super|null|true|false|instanceof|var|record|enum|sealed|permits|assert)\b|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|\/\/.*$|\b\d+(?:\.\d+)?[fFdDlL]?\b)/
+  );
+
+  return parts.map((part, idx) => {
+    if (!part) return null;
+    if (keywordSet.has(part)) {
+      return <span key={idx} className="text-blue-400 font-medium">{part}</span>;
+    }
+    if (typeSet.has(part)) {
+      return <span key={idx} className="text-cyan-400">{part}</span>;
+    }
+    if (part.startsWith("//")) {
+      return <span key={idx} className="text-zinc-400 italic">{part}</span>;
+    }
+    if (
+      (part.startsWith('"') && part.endsWith('"'))
+    ) {
+      return <span key={idx} className="text-emerald-500">{part}</span>;
+    }
+    if (part.startsWith("'")) {
+      return <span key={idx} className="text-emerald-500">{part}</span>;
+    }
+    if (/^\d+(?:\.\d+)?[fFdDlL]?$/.test(part)) {
+      return <span key={idx} className="text-orange-400">{part}</span>;
+    }
+    return <span key={idx}>{part}</span>;
+  });
+}
+
+// Python syntax highlighting
+function highlightPythonLine(line: string): React.ReactNode[] {
   const trimmed = line.trimStart();
   if (trimmed.startsWith("#")) {
     return [
@@ -70,6 +151,9 @@ function highlightLine(line: string): React.ReactNode[] {
 
 export function SourceViewer({ source, filename }: SourceViewerProps) {
   const lines = useMemo(() => source.split("\n"), [source]);
+  const lang = useMemo(() => detectLanguage(filename), [filename]);
+
+  const highlightLine = lang === "java" ? highlightJavaLine : highlightPythonLine;
 
   return (
     <div className="rounded-lg border border-zinc-200 dark:border-zinc-700">

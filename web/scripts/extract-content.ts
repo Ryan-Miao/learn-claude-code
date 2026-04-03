@@ -11,45 +11,87 @@ import { VERSION_META, VERSION_ORDER, LEARNING_PATH } from "../src/lib/constants
 // Resolve paths relative to this script's location (web/scripts/)
 const WEB_DIR = path.resolve(__dirname, "..");
 const REPO_ROOT = path.resolve(WEB_DIR, "..");
-const AGENTS_DIR = path.join(REPO_ROOT, "agents");
+const JAVA_SRC_DIR = path.join(
+  REPO_ROOT,
+  "claude-learn",
+  "src",
+  "main",
+  "java",
+  "com",
+  "demo",
+  "learn"
+);
 const DOCS_DIR = path.join(REPO_ROOT, "docs");
 const OUT_DIR = path.join(WEB_DIR, "src", "data", "generated");
 
-// Map python filenames to version IDs
-// s01_agent_loop.py -> s01
-// s02_tools.py -> s02
-// s_full.py -> s_full (reference agent, typically skipped)
+// Map Java filenames to version IDs
+// S01AgentLoop.java -> s01
+// S02ToolUse.java -> s02
+// S12WorktreeIsolation.java -> s12
 function filenameToVersionId(filename: string): string | null {
-  const base = path.basename(filename, ".py");
-  if (base === "s_full") return null;
-  if (base === "__init__") return null;
-
-  const match = base.match(/^(s\d+[a-c]?)_/);
+  const base = path.basename(filename, ".java");
+  const match = base.match(/^(S\d{2})/);
   if (!match) return null;
-  return match[1];
+  return match[1].replace(/^S(\d{2})/, (m, n) => `s${n}`);
 }
 
-// Extract classes from Python source
+// Find the main Java source file for a version (e.g., S01AgentLoop.java in s01/ subdirectory)
+function findMainSourceFile(
+  versionId: string
+): { filePath: string; filename: string } | null {
+  const subDir = versionId.toLowerCase();
+  const dir = path.join(JAVA_SRC_DIR, subDir);
+  if (!fs.existsSync(dir)) return null;
+
+  const files = fs.readdirSync(dir).filter((f) => f.endsWith(".java"));
+  // Prefer the file that starts with S{NN} (the main agent file)
+  const mainFile = files.find((f) => {
+    const base = path.basename(f, ".java");
+    return base.toLowerCase().startsWith(subDir.replace("s0", "s") + "agent") ||
+      base.toLowerCase().startsWith(subDir) ||
+      base.match(new RegExp(`^S${versionId.slice(1)}\\w+`, "i"));
+  });
+
+  if (mainFile) {
+    return { filePath: path.join(dir, mainFile), filename: mainFile };
+  }
+
+  // Fallback: first .java file
+  if (files.length > 0) {
+    return { filePath: path.join(dir, files[0]), filename: files[0] };
+  }
+
+  return null;
+}
+
+// Extract classes from Java source
 function extractClasses(
   lines: string[]
 ): { name: string; startLine: number; endLine: number }[] {
   const classes: { name: string; startLine: number; endLine: number }[] = [];
-  const classPattern = /^class\s+(\w+)/;
+  const classPattern =
+    /^(?:public\s+|private\s+|protected\s+)?(?:abstract\s+|static\s+|final\s+)?class\s+(\w+)/;
 
   for (let i = 0; i < lines.length; i++) {
     const m = lines[i].match(classPattern);
     if (m) {
       const name = m[1];
       const startLine = i + 1;
-      // Find end of class: next class/function at indent 0, or EOF
+      // Find end of class: matching closing brace
+      let braceCount = 0;
       let endLine = lines.length;
-      for (let j = i + 1; j < lines.length; j++) {
-        if (
-          lines[j].match(/^class\s/) ||
-          lines[j].match(/^def\s/) ||
-          (lines[j].match(/^\S/) && lines[j].trim() !== "" && !lines[j].startsWith("#") && !lines[j].startsWith("@"))
-        ) {
-          endLine = j;
+      let started = false;
+      for (let j = i; j < lines.length; j++) {
+        for (const ch of lines[j]) {
+          if (ch === "{") {
+            braceCount++;
+            started = true;
+          } else if (ch === "}") {
+            braceCount--;
+          }
+        }
+        if (started && braceCount === 0) {
+          endLine = j + 1;
           break;
         }
       }
@@ -59,19 +101,26 @@ function extractClasses(
   return classes;
 }
 
-// Extract top-level functions from Python source
+// Extract methods from Java source
 function extractFunctions(
   lines: string[]
 ): { name: string; signature: string; startLine: number }[] {
   const functions: { name: string; signature: string; startLine: number }[] = [];
-  const funcPattern = /^def\s+(\w+)\((.*?)\)/;
 
   for (let i = 0; i < lines.length; i++) {
-    const m = lines[i].match(funcPattern);
-    if (m) {
+    const line = lines[i].trim();
+    // Match method declarations: visibility? modifiers? returnType methodName(params)
+    const methodMatch = line.match(
+      /^(?:public|private|protected)?\s*(?:static\s+)?(?:\w+(?:<[^>]+>)?)\s+(\w+)\s*\(([^)]*)\)/
+    );
+    if (methodMatch && !line.startsWith("class ") && !line.includes("new ") && !line.includes("return")) {
+      const name = methodMatch[1];
+      // Skip common non-method patterns
+      if (["if", "while", "for", "switch", "catch"].includes(name)) continue;
+      const signature = line.replace(/\s+/g, " ").trim();
       functions.push({
-        name: m[1],
-        signature: `def ${m[1]}(${m[2]})`,
+        name,
+        signature,
         startLine: i + 1,
       });
     }
@@ -79,30 +128,67 @@ function extractFunctions(
   return functions;
 }
 
-// Extract tool names from Python source
-// Looks for "name": "tool_name" patterns in dict literals
+// Extract tool names from Java source
+// Looks for @Tool annotated methods or "name": "tool_name" patterns
 function extractTools(source: string): string[] {
-  const toolPattern = /"name"\s*:\s*"(\w+)"/g;
   const tools = new Set<string>();
+
+  // Match @Tool annotation patterns (Spring AI style)
+  const toolAnnotationPattern = /@Tool\([^)]*name\s*=\s*"(\w+)"/g;
   let m;
-  while ((m = toolPattern.exec(source)) !== null) {
+  while ((m = toolAnnotationPattern.exec(source)) !== null) {
     tools.add(m[1]);
   }
+
+  // Also match method names following @Tool annotation (without explicit name)
+  const lines = source.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].trim() === "@Tool") {
+      // Next non-empty line should have the method
+      for (let j = i + 1; j < lines.length; j++) {
+        const nextLine = lines[j].trim();
+        if (nextLine && !nextLine.startsWith("@")) {
+          const methodMatch = nextLine.match(/(\w+)\s*\(/);
+          if (methodMatch) {
+            tools.add(methodMatch[1]);
+          }
+          break;
+        }
+      }
+    }
+  }
+
+  // Also match string patterns like "name": "tool_name"
+  const dictPattern = /"name"\s*:\s*"(\w+)"/g;
+  while ((m = dictPattern.exec(source)) !== null) {
+    tools.add(m[1]);
+  }
+
   return Array.from(tools);
 }
 
-// Count non-blank, non-comment lines
+// Count non-blank, non-comment lines (Java style)
 function countLoc(lines: string[]): number {
+  let inBlockComment = false;
   return lines.filter((line) => {
     const trimmed = line.trim();
-    return trimmed !== "" && !trimmed.startsWith("#");
+    if (inBlockComment) {
+      if (trimmed.includes("*/")) {
+        inBlockComment = false;
+      }
+      return false;
+    }
+    if (trimmed.startsWith("/*")) {
+      if (!trimmed.includes("*/") || trimmed.endsWith("/*")) {
+        inBlockComment = true;
+      }
+      return false;
+    }
+    return trimmed !== "" && !trimmed.startsWith("//") && !trimmed.startsWith("*");
   }).length;
 }
 
 // Detect locale from subdirectory path
-// docs/en/s01-the-agent-loop.md -> "en"
-// docs/zh/s01-the-agent-loop.md -> "zh"
-// docs/ja/s01-the-agent-loop.md -> "ja"
 function detectLocale(relPath: string): "en" | "zh" | "ja" {
   if (relPath.startsWith("zh/") || relPath.startsWith("zh\\")) return "zh";
   if (relPath.startsWith("ja/") || relPath.startsWith("ja\\")) return "ja";
@@ -117,53 +203,63 @@ function extractDocVersion(filename: string): string | null {
 
 // Main extraction
 function main() {
-  console.log("Extracting content from agents and docs...");
+  console.log("Extracting content from Java sources and docs...");
   console.log(`  Repo root: ${REPO_ROOT}`);
-  console.log(`  Agents dir: ${AGENTS_DIR}`);
+  console.log(`  Java src dir: ${JAVA_SRC_DIR}`);
   console.log(`  Docs dir: ${DOCS_DIR}`);
 
   // Skip extraction if source directories don't exist (e.g. Vercel build).
-  // Pre-committed generated data will be used instead.
-  if (!fs.existsSync(AGENTS_DIR)) {
-    console.log("  Agents directory not found, skipping extraction.");
+  if (!fs.existsSync(JAVA_SRC_DIR)) {
+    console.log("  Java source directory not found, skipping extraction.");
     console.log("  Using pre-committed generated data.");
     return;
   }
 
-  // 1. Read all agent files
-  const agentFiles = fs
-    .readdirSync(AGENTS_DIR)
-    .filter((f) => f.startsWith("s") && f.endsWith(".py"));
+  // 1. Read all version subdirectories
+  const subDirs = fs
+    .readdirSync(JAVA_SRC_DIR)
+    .filter((d) => {
+      const fullPath = path.join(JAVA_SRC_DIR, d);
+      return fs.statSync(fullPath).isDirectory() && d.match(/^s\d+$/);
+    });
 
-  console.log(`  Found ${agentFiles.length} agent files`);
+  console.log(`  Found ${subDirs.length} version directories`);
 
   const versions: AgentVersion[] = [];
 
-  for (const filename of agentFiles) {
-    const versionId = filenameToVersionId(filename);
-    if (!versionId) {
-      console.warn(`  Skipping ${filename}: could not determine version ID`);
+  for (const subDir of subDirs) {
+    const versionId = subDir.replace(/^s0?/, "s").replace(/^s(\d)$/, "s0$1");
+    // Normalize: s1 -> s01, s12 -> s12
+    const normalizedId = subDir.match(/^s(\d+)$/)
+      ? `s${subDir.slice(1).padStart(2, "0")}`
+      : subDir;
+
+    const mainFile = findMainSourceFile(normalizedId);
+    if (!mainFile) {
+      console.warn(`  Skipping ${subDir}: no main source file found`);
       continue;
     }
 
-    const filePath = path.join(AGENTS_DIR, filename);
-    const source = fs.readFileSync(filePath, "utf-8");
+    const source = fs.readFileSync(mainFile.filePath, "utf-8");
     const lines = source.split("\n");
 
-    const meta = VERSION_META[versionId];
+    const meta = VERSION_META[normalizedId];
     const classes = extractClasses(lines);
     const functions = extractFunctions(lines);
     const tools = extractTools(source);
     const loc = countLoc(lines);
 
+    // Use relative path from claude-learn/ as filename for display
+    const displayFilename = mainFile.filename;
+
     versions.push({
-      id: versionId,
-      filename,
-      title: meta?.title ?? versionId,
+      id: normalizedId,
+      filename: displayFilename,
+      title: meta?.title ?? normalizedId,
       subtitle: meta?.subtitle ?? "",
       loc,
       tools,
-      newTools: [], // computed after all versions are loaded
+      newTools: [],
       coreAddition: meta?.coreAddition ?? "",
       keyInsight: meta?.keyInsight ?? "",
       classes,
