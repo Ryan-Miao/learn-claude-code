@@ -71,6 +71,7 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
     private final Runnable onExit;
 
     // --- 内部状态 ---
+    private final Object stateLock = new Object(); // 保护 getState/setState 的读-改-写操作
     private final List<String> inputHistory = new ArrayList<>();
     private int historyIndex = -1;
     private String savedInput = "";
@@ -441,78 +442,82 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
 
     @Override
     public void onInput(String input, Key key) {
-        TuiState s = getState();
+        synchronized (stateLock) {
+            TuiState s = getState();
 
-        // Ctrl+D: 退出
-        if (key.ctrl() && "d".equals(input)) {
-            if (onExit != null) onExit.run();
-            return;
-        }
+            // Ctrl+D: 退出
+            if (key.ctrl() && "d".equals(input)) {
+                if (onExit != null) onExit.run();
+                return;
+            }
 
-        // Ctrl+C: 取消当前输入或中断 Agent
-        if (key.ctrl() && "c".equals(input)) {
+            // Ctrl+C: 取消当前输入或中断 Agent
+            if (key.ctrl() && "c".equals(input)) {
+                if (agentRunning.get()) {
+                    // TODO: 中断 Agent 运行
+                    addMessageInternal(new SystemMsg("^C (interrupt)", Color.BRIGHT_YELLOW), s);
+                } else {
+                    setState(new TuiState("", s.messages, s.scrollOffset, false, ""));
+                }
+                return;
+            }
+
+            // 权限确认模式
+            if (permissionCallback != null) {
+                handlePermissionInput(input, key, s);
+                return;
+            }
+
+            // AI 运行中时忽略大部分输入（但允许滚动）
             if (agentRunning.get()) {
-                // TODO: 中断 Agent 运行
-                addMessage(new SystemMsg("^C (interrupt)", Color.BRIGHT_YELLOW));
-            } else {
+                handleScrollInput(key, s);
+                return;
+            }
+
+            if (key.return_() && key.meta()) {
+                // Shift+Enter: 多行换行
+                setState(new TuiState(s.inputText + "\n", s.messages, 0, false, ""));
+            } else if (key.return_()) {
+                // Enter: 发送
+                if (!s.inputText.isEmpty()) {
+                    submitInput(s.inputText, s);
+                }
+            } else if (key.backspace()) {
+                if (!s.inputText.isEmpty()) {
+                    abandonHistoryPreview();
+                    String newText = s.inputText.substring(0, s.inputText.length() - 1);
+                    setState(new TuiState(newText, s.messages, s.scrollOffset, false, ""));
+                }
+            } else if (key.upArrow()) {
+                browseHistoryUp(s);
+            } else if (key.downArrow()) {
+                browseHistoryDown(s);
+            } else if (key.scrollUp()) {
+                scroll(s, 3);
+            } else if (key.scrollDown()) {
+                scroll(s, -3);
+            } else if (key.pageUp()) {
+                scroll(s, 10);
+            } else if (key.pageDown()) {
+                scroll(s, -10);
+            } else if (key.escape()) {
+                // Esc: 清空输入
                 setState(new TuiState("", s.messages, s.scrollOffset, false, ""));
-            }
-            return;
-        }
-
-        // 权限确认模式
-        if (permissionCallback != null) {
-            handlePermissionInput(input, key, s);
-            return;
-        }
-
-        // AI 运行中时忽略大部分输入（但允许滚动）
-        if (agentRunning.get()) {
-            handleScrollInput(key, s);
-            return;
-        }
-
-        if (key.return_() && key.meta()) {
-            // Shift+Enter: 多行换行
-            setState(new TuiState(s.inputText + "\n", s.messages, 0, false, ""));
-        } else if (key.return_()) {
-            // Enter: 发送
-            if (!s.inputText.isEmpty()) {
-                submitInput(s.inputText, s);
-            }
-        } else if (key.backspace()) {
-            if (!s.inputText.isEmpty()) {
+            } else if (!input.isEmpty() && isPrintableInput(input, key)) {
                 abandonHistoryPreview();
-                String newText = s.inputText.substring(0, s.inputText.length() - 1);
-                setState(new TuiState(newText, s.messages, s.scrollOffset, false, ""));
+                setState(new TuiState(s.inputText + input, s.messages, s.scrollOffset, false, ""));
             }
-        } else if (key.upArrow()) {
-            browseHistoryUp(s);
-        } else if (key.downArrow()) {
-            browseHistoryDown(s);
-        } else if (key.scrollUp()) {
-            scroll(s, 3);
-        } else if (key.scrollDown()) {
-            scroll(s, -3);
-        } else if (key.pageUp()) {
-            scroll(s, 10);
-        } else if (key.pageDown()) {
-            scroll(s, -10);
-        } else if (key.escape()) {
-            // Esc: 清空输入
-            setState(new TuiState("", s.messages, s.scrollOffset, false, ""));
-        } else if (!input.isEmpty() && isPrintableInput(input, key)) {
-            abandonHistoryPreview();
-            setState(new TuiState(s.inputText + input, s.messages, s.scrollOffset, false, ""));
         }
     }
 
     @Override
     public void onPaste(String text) {
-        if (agentRunning.get() || text == null || text.isEmpty()) return;
-        TuiState s = getState();
-        abandonHistoryPreview();
-        setState(new TuiState(s.inputText + text, s.messages, s.scrollOffset, false, ""));
+        synchronized (stateLock) {
+            if (agentRunning.get() || text == null || text.isEmpty()) return;
+            TuiState s = getState();
+            abandonHistoryPreview();
+            setState(new TuiState(s.inputText + text, s.messages, s.scrollOffset, false, ""));
+        }
     }
 
     /** 处理权限确认输入 */
@@ -605,8 +610,10 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
                 addMessage(new SystemMsg("Error: " + e.getMessage(), Color.BRIGHT_RED));
             } finally {
                 agentRunning.set(false);
-                TuiState cs = getState();
-                setState(new TuiState(cs.inputText, cs.messages, 0, false, ""));
+                synchronized (stateLock) {
+                    TuiState cs = getState();
+                    setState(new TuiState(cs.inputText, cs.messages, 0, false, ""));
+                }
             }
         });
     }
@@ -615,7 +622,13 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
 
     /** 添加一条消息 */
     public void addMessage(UIMessage msg) {
-        TuiState s = getState();
+        synchronized (stateLock) {
+            addMessageInternal(msg, getState());
+        }
+    }
+
+    /** 内部添加消息（调用方需持有 stateLock） */
+    private void addMessageInternal(UIMessage msg, TuiState s) {
         List<UIMessage> newMsgs = new ArrayList<>(s.messages);
         newMsgs.add(msg);
         setState(new TuiState(s.inputText, Collections.unmodifiableList(newMsgs),
@@ -624,46 +637,52 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
 
     /** 追加 token 到当前流式助手消息 */
     private void appendToStreamingMessage(String token) {
-        TuiState s = getState();
-        List<UIMessage> msgs = new ArrayList<>(s.messages);
+        synchronized (stateLock) {
+            TuiState s = getState();
+            List<UIMessage> msgs = new ArrayList<>(s.messages);
 
-        // 查找最后一个 streaming AssistantMsg
-        if (!msgs.isEmpty() && msgs.getLast() instanceof AssistantMsg am && am.streaming()) {
-            msgs.set(msgs.size() - 1, am.appendText(token));
-        } else {
-            msgs.add(new AssistantMsg(token, true));
-        }
+            // 查找最后一个 streaming AssistantMsg
+            if (!msgs.isEmpty() && msgs.getLast() instanceof AssistantMsg am && am.streaming()) {
+                msgs.set(msgs.size() - 1, am.appendText(token));
+            } else {
+                msgs.add(new AssistantMsg(token, true));
+            }
 
-        setState(new TuiState(s.inputText, Collections.unmodifiableList(msgs),
-                0, s.thinking, s.thinkingText));
-    }
-
-    /** 完成当前流式消息（公开给 JinkReplSession 使用） */
-    public void finishStreamingMessage() {
-        TuiState s = getState();
-        List<UIMessage> msgs = new ArrayList<>(s.messages);
-
-        if (!msgs.isEmpty() && msgs.getLast() instanceof AssistantMsg am && am.streaming()) {
-            msgs.set(msgs.size() - 1, am.finish());
             setState(new TuiState(s.inputText, Collections.unmodifiableList(msgs),
                     0, s.thinking, s.thinkingText));
         }
     }
 
-    /** 更新最后一个工具调用消息的结果 */
-    public void completeLastToolCall(String result) {
-        TuiState s = getState();
-        List<UIMessage> msgs = new ArrayList<>(s.messages);
+    /** 完成当前流式消息（公开给 JinkReplSession 使用） */
+    public void finishStreamingMessage() {
+        synchronized (stateLock) {
+            TuiState s = getState();
+            List<UIMessage> msgs = new ArrayList<>(s.messages);
 
-        for (int i = msgs.size() - 1; i >= 0; i--) {
-            if (msgs.get(i) instanceof ToolCallMsg tcm && tcm.running()) {
-                msgs.set(i, tcm.complete(result));
-                break;
+            if (!msgs.isEmpty() && msgs.getLast() instanceof AssistantMsg am && am.streaming()) {
+                msgs.set(msgs.size() - 1, am.finish());
+                setState(new TuiState(s.inputText, Collections.unmodifiableList(msgs),
+                        0, s.thinking, s.thinkingText));
             }
         }
+    }
 
-        setState(new TuiState(s.inputText, Collections.unmodifiableList(msgs),
-                s.scrollOffset, s.thinking, s.thinkingText));
+    /** 更新最后一个工具调用消息的结果 */
+    public void completeLastToolCall(String result) {
+        synchronized (stateLock) {
+            TuiState s = getState();
+            List<UIMessage> msgs = new ArrayList<>(s.messages);
+
+            for (int i = msgs.size() - 1; i >= 0; i--) {
+                if (msgs.get(i) instanceof ToolCallMsg tcm && tcm.running()) {
+                    msgs.set(i, tcm.complete(result));
+                    break;
+                }
+            }
+
+            setState(new TuiState(s.inputText, Collections.unmodifiableList(msgs),
+                    s.scrollOffset, s.thinking, s.thinkingText));
+        }
     }
 
     /** 设置权限确认回调 */
@@ -673,8 +692,10 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
 
     /** 设置 thinking 状态 */
     public void setThinking(boolean thinking, String text) {
-        TuiState s = getState();
-        setState(new TuiState(s.inputText, s.messages, s.scrollOffset, thinking, text));
+        synchronized (stateLock) {
+            TuiState s = getState();
+            setState(new TuiState(s.inputText, s.messages, s.scrollOffset, thinking, text));
+        }
     }
 
     /** 设置首次用户输入回调 */
@@ -747,20 +768,20 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
             String[] keys = {"command", "file_path", "pattern", "query", "url"};
             for (String key : keys) {
                 String search = "\"" + key + "\"";
-                if (args.contains(search)) {
-                    int start = args.indexOf(search);
-                    int valStart = args.indexOf("\"", start + search.length()) + 1;
-                    int valEnd = args.indexOf("\"", valStart);
-                    if (valStart > 0 && valEnd > valStart) {
-                        String val = args.substring(valStart, Math.min(valEnd, valStart + 60));
-                        return switch (key) {
-                            case "command" -> "$ " + val;
-                            case "pattern" -> "pattern: " + val;
-                            case "query" -> "\"" + val + "\"";
-                            default -> val;
-                        };
-                    }
-                }
+                int start = args.indexOf(search);
+                if (start < 0) continue;
+                int colonPos = args.indexOf("\"", start + search.length());
+                if (colonPos < 0) continue;
+                int valStart = colonPos + 1;
+                int valEnd = args.indexOf("\"", valStart);
+                if (valEnd < 0 || valEnd <= valStart) continue;
+                String val = args.substring(valStart, Math.min(valEnd, valStart + 60));
+                return switch (key) {
+                    case "command" -> "$ " + val;
+                    case "pattern" -> "pattern: " + val;
+                    case "query" -> "\"" + val + "\"";
+                    default -> val;
+                };
             }
         } catch (Exception ignored) {}
         return null;
