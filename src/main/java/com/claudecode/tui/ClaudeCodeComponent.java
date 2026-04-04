@@ -417,6 +417,16 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
                             argSummary != null ? Text.of("(" + argSummary + ")").dimmed() : Text.of(""),
                             Text.of("  running...").dimmed()
                     ));
+                    // 流式输出预览（最后几行）
+                    if (m.outputLines() != null && !m.outputLines().isEmpty()) {
+                        for (String line : m.outputLines()) {
+                            lines.add(Text.of(
+                                    Text.of("  ⎿  ").dimmed(),
+                                    Text.of(line.length() > 120 ? line.substring(0, 117) + "..." : line)
+                                            .color(Color.BRIGHT_BLACK)
+                            ));
+                        }
+                    }
                 } else {
                     lines.add(Text.of(
                             Text.of("  ● ").color(Color.BRIGHT_GREEN),
@@ -1238,6 +1248,24 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
             for (int i = msgs.size() - 1; i >= 0; i--) {
                 if (msgs.get(i) instanceof ToolCallMsg tcm && tcm.running()) {
                     msgs.set(i, tcm.complete(result));
+                    break;
+                }
+            }
+
+            setState(new TuiState(s.inputText, Collections.unmodifiableList(msgs),
+                    s.scrollOffset, s.thinking, s.thinkingText));
+        }
+    }
+
+    /** 追加工具执行的流式输出行到最后一个运行中的 ToolCallMsg */
+    public void appendToolOutput(String line) {
+        synchronized (stateLock) {
+            TuiState s = getState();
+            List<UIMessage> msgs = new ArrayList<>(s.messages);
+
+            for (int i = msgs.size() - 1; i >= 0; i--) {
+                if (msgs.get(i) instanceof ToolCallMsg tcm && tcm.running()) {
+                    msgs.set(i, tcm.appendOutput(line));
                     break;
                 }
             }

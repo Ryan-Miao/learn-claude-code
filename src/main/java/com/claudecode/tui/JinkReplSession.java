@@ -120,6 +120,10 @@ public class JinkReplSession {
                             true
                     ));
                 }
+                case PROGRESS -> {
+                    // 工具执行中的流式输出行
+                    component.appendToolOutput(event.result());
+                }
                 case END -> {
                     component.completeLastToolCall(event.result());
                 }

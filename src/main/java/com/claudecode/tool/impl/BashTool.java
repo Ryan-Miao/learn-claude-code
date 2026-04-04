@@ -118,6 +118,8 @@ public class BashTool implements Tool {
                 String line;
                 while ((line = reader.readLine()) != null) {
                     output.append(line).append("\n");
+                    // 报告流式进度
+                    context.reportProgress(line);
                 }
             }
 

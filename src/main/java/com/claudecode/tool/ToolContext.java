@@ -2,6 +2,7 @@ package com.claudecode.tool;
 
 import java.nio.file.Path;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
 /**
  * 工具执行上下文 —— 对应 claude-code 中 ToolUseContext。
@@ -13,6 +14,7 @@ public class ToolContext {
     private final Path workDir;
     private final String model;
     private final ConcurrentHashMap<String, Object> state;
+    private volatile Consumer<String> progressCallback; // 工具执行进度回调（流式输出行）
 
     public ToolContext(Path workDir, String model) {
         this.workDir = workDir;
@@ -50,5 +52,18 @@ public class ToolContext {
 
     public boolean has(String key) {
         return state.containsKey(key);
+    }
+
+    /** 设置进度回调（工具可在执行过程中报告输出行） */
+    public void setProgressCallback(Consumer<String> progressCallback) {
+        this.progressCallback = progressCallback;
+    }
+
+    /** 报告进度（如果有回调注册） */
+    public void reportProgress(String line) {
+        Consumer<String> cb = progressCallback;
+        if (cb != null) {
+            cb.accept(line);
+        }
     }
 }

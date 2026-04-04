@@ -25,10 +25,28 @@ public sealed interface UIMessage {
         }
     }
 
-    /** 工具调用消息 */
-    record ToolCallMsg(String toolName, String args, String result, boolean running) implements UIMessage {
+    /** 工具调用消息（支持流式输出预览） */
+    record ToolCallMsg(String toolName, String args, String result, boolean running,
+                       List<String> outputLines) implements UIMessage {
+        /** 创建运行中的工具消息（无输出） */
+        public ToolCallMsg(String toolName, String args, String result, boolean running) {
+            this(toolName, args, result, running, List.of());
+        }
+
+        /** 完成工具调用 */
         public ToolCallMsg complete(String result) {
-            return new ToolCallMsg(toolName, args, result, false);
+            return new ToolCallMsg(toolName, args, result, false, List.of());
+        }
+
+        /** 追加一行流式输出 */
+        public ToolCallMsg appendOutput(String line) {
+            var newLines = new java.util.ArrayList<>(outputLines);
+            newLines.add(line);
+            // 只保留最后 5 行预览
+            while (newLines.size() > 5) {
+                newLines.removeFirst();
+            }
+            return new ToolCallMsg(toolName, args, result, running, List.copyOf(newLines));
         }
     }
 

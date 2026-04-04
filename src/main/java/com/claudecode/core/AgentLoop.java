@@ -413,7 +413,18 @@ public class AgentLoop {
                 }
 
                 if (permitted) {
-                    result = adapter.call(toolArgs);
+                    // 设置进度回调，将工具输出行转发为 PROGRESS 事件
+                    final String tn = toolName;
+                    final String ta = toolArgs;
+                    if (onToolEvent != null) {
+                        toolContext.setProgressCallback(line ->
+                                onToolEvent.accept(new ToolEvent(tn, ToolEvent.Phase.PROGRESS, ta, line)));
+                    }
+                    try {
+                        result = adapter.call(toolArgs);
+                    } finally {
+                        toolContext.setProgressCallback(null);
+                    }
                 } else {
                     result = "Permission denied: User rejected this operation";
                     log.info("[{}] User denied tool execution", toolName);
@@ -561,6 +572,6 @@ public class AgentLoop {
 
     /** 工具事件，用于 UI 展示 */
     public record ToolEvent(String toolName, Phase phase, String arguments, String result) {
-        public enum Phase { START, END }
+        public enum Phase { START, PROGRESS, END }
     }
 }
