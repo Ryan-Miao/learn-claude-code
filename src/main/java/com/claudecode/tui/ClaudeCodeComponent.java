@@ -72,6 +72,7 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
 
     // --- 内部状态 ---
     private final Object stateLock = new Object(); // 保护 getState/setState 的读-改-写操作
+    private final Object spinnerLock = new Object(); // 保护 spinner 线程的启停
     private final List<String> inputHistory = new ArrayList<>();
     private int historyIndex = -1;
     private String savedInput = "";
@@ -122,29 +123,41 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
         int w = getColumns();
         int h = getRows();
 
+        // 快照 volatile 字段（避免 render 过程中被其他线程修改）
+        final List<String> snapAskOptions;
+        final int snapAskSelected;
+        final boolean snapAskInputMode;
+        final boolean snapHasCallback;
+        synchronized (stateLock) {
+            snapAskOptions = askOptions != null ? List.copyOf(askOptions) : null;
+            snapAskSelected = askSelectedIndex;
+            snapAskInputMode = askInputMode;
+            snapHasCallback = permissionCallback != null;
+        }
+
         // 计算输入区行数
         int inputLineCount = 1;
         String lastLine = s.inputText;
-        if (askOptions != null && !askOptions.isEmpty() && permissionCallback != null) {
+        if (snapAskOptions != null && !snapAskOptions.isEmpty() && snapHasCallback) {
             // AskUser 模式：选项数 + 提示行
-            inputLineCount = askOptions.size() + 1;
+            inputLineCount = snapAskOptions.size() + 1;
         } else if (!s.inputText.isEmpty()) {
             String[] inputLines = s.inputText.split("\n", -1);
             inputLineCount = inputLines.length;
             lastLine = inputLines[inputLines.length - 1];
         }
 
-        // 光标定位
-        if (askOptions != null && !askOptions.isEmpty() && permissionCallback != null) {
-            // AskUser 模式：隐藏光标（选项列表模式不需要）
-            if (askInputMode) {
-                int askCursorRow = h - 2 - (askOptions.size() - askSelectedIndex);
-                setCursorPosition(askCursorRow, 7 + StringWidth.width(s.inputText));
+        // 光标定位（clamp 到 >= 0 防止小终端越界）
+        if (snapAskOptions != null && !snapAskOptions.isEmpty() && snapHasCallback) {
+            if (snapAskInputMode) {
+                int askCursorRow = h - 2 - (snapAskOptions.size() - snapAskSelected);
+                setCursorPosition(Math.max(0, askCursorRow), 7 + StringWidth.width(s.inputText));
             } else {
-                setCursorPosition(h - 2 - (askOptions.size() - askSelectedIndex), 6);
+                int askCursorRow = h - 2 - (snapAskOptions.size() - snapAskSelected);
+                setCursorPosition(Math.max(0, askCursorRow), 6);
             }
         } else {
-            int cursorRow = h - 3;
+            int cursorRow = Math.max(0, h - 3);
             int cursorCol = 1 + PROMPT_WIDTH + StringWidth.width(lastLine);
             setCursorPosition(cursorRow, cursorCol);
         }
@@ -152,18 +165,28 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
         int headerHeight = 8; // 6 content rows + 2 border lines
         int bottomHeight = 4 + inputLineCount;
         int messagePaddingTop = 1;
-        int maxMessageLines = h - headerHeight - bottomHeight - messagePaddingTop;
+        int maxMessageLines = Math.max(1, h - headerHeight - bottomHeight - messagePaddingTop);
 
-        return Box.of(
-                headerBox(w),
-                messagesArea(s, maxMessageLines),
-                Spacer.create(),
-                statusBar(w, h),
-                separator(w),
-                inputArea(s, w),
-                separator(w),
-                shortcutBar(w)
-        ).flexDirection(FlexDirection.COLUMN).width(w).height(h);
+        // 终端高度太小时，隐藏标题框以腾出消息空间
+        boolean showHeader = h >= 20;
+        if (!showHeader) {
+            maxMessageLines = Math.max(1, h - bottomHeight - messagePaddingTop);
+        }
+
+        List<Renderable> layout = new ArrayList<>();
+        if (showHeader) {
+            layout.add(headerBox(w));
+        }
+        layout.add(messagesArea(s, maxMessageLines));
+        layout.add(Spacer.create());
+        layout.add(statusBar(w, h));
+        layout.add(separator(w));
+        layout.add(inputArea(s, w));
+        layout.add(separator(w));
+        layout.add(shortcutBar(w));
+
+        return Box.of(layout.toArray(new Renderable[0]))
+                .flexDirection(FlexDirection.COLUMN).width(w).height(h);
     }
 
     /** 标题框 — 保留原始 ASCII Logo 样式（双列布局） */
@@ -721,22 +744,23 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
             addMessage(new UserMsg(text));
             // 捕获命令输出到 ByteArrayOutputStream
             var baos = new ByteArrayOutputStream();
-            var capturedOut = new PrintStream(baos, true, StandardCharsets.UTF_8);
-            CommandContext cmdCtx = new CommandContext(agentLoop, toolRegistry, commandRegistry,
-                    capturedOut, () -> {
-                if (onExit != null) onExit.run();
-            });
-            Optional<String> result = commandRegistry.dispatch(text, cmdCtx);
-            // 合并 dispatch 返回值和 capturedOut 的内容
-            StringBuilder output = new StringBuilder();
-            result.ifPresent(output::append);
-            String captured = baos.toString(StandardCharsets.UTF_8);
-            if (!captured.isBlank()) {
-                if (!output.isEmpty()) output.append("\n");
-                output.append(captured);
-            }
-            if (!output.isEmpty()) {
-                addMessage(new CommandOutputMsg(output.toString()));
+            try (var capturedOut = new PrintStream(baos, true, StandardCharsets.UTF_8)) {
+                CommandContext cmdCtx = new CommandContext(agentLoop, toolRegistry, commandRegistry,
+                        capturedOut, () -> {
+                    if (onExit != null) onExit.run();
+                });
+                Optional<String> result = commandRegistry.dispatch(text, cmdCtx);
+                // 合并 dispatch 返回值和 capturedOut 的内容
+                StringBuilder output = new StringBuilder();
+                result.ifPresent(output::append);
+                String captured = baos.toString(StandardCharsets.UTF_8);
+                if (!captured.isBlank()) {
+                    if (!output.isEmpty()) output.append("\n");
+                    output.append(captured);
+                }
+                if (!output.isEmpty()) {
+                    addMessage(new CommandOutputMsg(output.toString()));
+                }
             }
             setState(new TuiState("", getState().messages, 0, false, ""));
             return;
@@ -788,25 +812,33 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
 
     /** 启动思考动画 */
     private void startSpinner() {
-        spinnerFrame = 0;
-        Thread t = Thread.startVirtualThread(() -> {
-            try {
-                while (!Thread.currentThread().isInterrupted()) {
-                    Thread.sleep(120);
-                    spinnerFrame++;
-                    // 触发重绘：读取当前状态并重新设置（内容不变，但 spinner 帧已更新）
-                    synchronized (stateLock) {
-                        TuiState s = getState();
-                        setState(new TuiState(s.inputText, s.messages, s.scrollOffset, s.thinking, s.thinkingText));
+        synchronized (spinnerLock) {
+            stopSpinnerInternal();
+            spinnerFrame = 0;
+            Thread t = Thread.startVirtualThread(() -> {
+                try {
+                    while (!Thread.currentThread().isInterrupted()) {
+                        Thread.sleep(120);
+                        spinnerFrame++;
+                        synchronized (stateLock) {
+                            TuiState s = getState();
+                            setState(new TuiState(s.inputText, s.messages, s.scrollOffset, s.thinking, s.thinkingText));
+                        }
                     }
-                }
-            } catch (InterruptedException ignored) {}
-        });
-        spinnerThread = t;
+                } catch (InterruptedException ignored) {}
+            });
+            spinnerThread = t;
+        }
     }
 
     /** 停止思考动画 */
     private void stopSpinner() {
+        synchronized (spinnerLock) {
+            stopSpinnerInternal();
+        }
+    }
+
+    private void stopSpinnerInternal() {
         Thread t = spinnerThread;
         if (t != null) {
             t.interrupt();
