@@ -107,6 +107,10 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
     /** Thinking 开始时间（用于显示耗时） */
     private volatile long thinkingStartTime = 0;
 
+    /** Tab 自动补全状态 */
+    private volatile List<String> commandSuggestions = List.of(); // 当前匹配的命令名列表
+    private volatile int tabCompletionIndex = -1;                  // 当前 Tab 循环索引，-1 表示未开始
+
     /** 首次用户输入回调（用于 conversation summary） */
     private Consumer<String> onFirstUserInput;
 
@@ -520,13 +524,22 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
                     Text.of(" Type a message, / for commands").dimmed()
             );
         } else {
-            // 有文字 — 文字 + 块光标
+            // 有文字 — 文字 + 块光标 + ghost text（命令补全提示）
             String indent = " ".repeat(PROMPT_WIDTH);
             String displayText = s.inputText.replace("\n", "\n" + indent);
-            content = Text.of(
-                    Text.of(displayText).color(Color.WHITE),
-                    Text.of("█").color(Color.BRIGHT_WHITE)
-            );
+            String ghost = getGhostText(s.inputText);
+            if (!ghost.isEmpty()) {
+                content = Text.of(
+                        Text.of(displayText).color(Color.WHITE),
+                        Text.of(ghost).dimmed(),
+                        Text.of("█").color(Color.BRIGHT_WHITE)
+                );
+            } else {
+                content = Text.of(
+                        Text.of(displayText).color(Color.WHITE),
+                        Text.of("█").color(Color.BRIGHT_WHITE)
+                );
+            }
         }
 
         return Box.of(
@@ -611,7 +624,29 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
         } else if (agentRunning.get()) {
             leftText = Text.of("esc to interrupt").dimmed();
         } else {
-            leftText = Text.of("↑↓ history  Esc interrupt").dimmed();
+            // 检查是否在输入斜杠命令 — 显示匹配的命令列表
+            List<String> suggestions = commandSuggestions;
+            if (!suggestions.isEmpty()) {
+                // 在快捷键栏显示匹配命令（最多显示 5 个）
+                int maxShow = Math.min(suggestions.size(), 5);
+                List<Renderable> parts = new ArrayList<>();
+                parts.add(Text.of("Tab ").color(Color.BRIGHT_CYAN));
+                for (int i = 0; i < maxShow; i++) {
+                    if (i > 0) parts.add(Text.of("  ").dimmed());
+                    String cmd = "/" + suggestions.get(i);
+                    if (i == tabCompletionIndex) {
+                        parts.add(Text.of(cmd).color(Color.BRIGHT_CYAN).bold());
+                    } else {
+                        parts.add(Text.of(cmd).dimmed());
+                    }
+                }
+                if (suggestions.size() > maxShow) {
+                    parts.add(Text.of("  +" + (suggestions.size() - maxShow) + " more").dimmed());
+                }
+                leftText = Text.of(parts.toArray(new Renderable[0]));
+            } else {
+                leftText = Text.of("↑↓ history  Esc interrupt").dimmed();
+            }
         }
 
         return Box.of(
@@ -705,6 +740,9 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
             if (key.return_() && key.meta()) {
                 // Shift+Enter: 多行换行
                 setState(new TuiState(s.inputText + "\n", s.messages, 0, false, ""));
+            } else if (key.tab() && !key.shift()) {
+                // Tab: 命令自动补全
+                handleTabCompletion(s);
             } else if (key.return_()) {
                 // Enter: 发送
                 if (!s.inputText.isEmpty()) {
@@ -714,6 +752,7 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
                 if (!s.inputText.isEmpty()) {
                     abandonHistoryPreview();
                     String newText = s.inputText.substring(0, s.inputText.length() - 1);
+                    updateCommandSuggestions(newText);
                     setState(new TuiState(newText, s.messages, s.scrollOffset, false, ""));
                 }
             } else if (key.upArrow()) {
@@ -736,10 +775,13 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
                 scroll(s, -10);
             } else if (key.escape()) {
                 // Esc: 清空输入
+                updateCommandSuggestions("");
                 setState(new TuiState("", s.messages, s.scrollOffset, false, ""));
             } else if (!input.isEmpty() && isPrintableInput(input, key)) {
                 abandonHistoryPreview();
-                setState(new TuiState(s.inputText + input, s.messages, s.scrollOffset, false, ""));
+                String newText = s.inputText + input;
+                updateCommandSuggestions(newText);
+                setState(new TuiState(newText, s.messages, s.scrollOffset, false, ""));
             }
         }
     }
@@ -904,11 +946,37 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
         else if (key.pageDown()) scroll(s, -10);
     }
 
+    /** Tab 自动补全处理 */
+    private void handleTabCompletion(TuiState s) {
+        if (!s.inputText.startsWith("/")) return;
+
+        List<String> suggestions = commandSuggestions;
+        if (suggestions.isEmpty()) {
+            // 第一次按 Tab 时可能还没计算建议
+            updateCommandSuggestions(s.inputText);
+            suggestions = commandSuggestions;
+            if (suggestions.isEmpty()) return;
+        }
+
+        if (suggestions.size() == 1) {
+            // 唯一匹配 → 直接补全 + 空格（准备输入参数）
+            String completed = "/" + suggestions.getFirst();
+            updateCommandSuggestions(completed);
+            setState(new TuiState(completed, s.messages, s.scrollOffset, false, ""));
+        } else {
+            // 多个匹配 → 循环选择
+            tabCompletionIndex = (tabCompletionIndex + 1) % suggestions.size();
+            String completed = "/" + suggestions.get(tabCompletionIndex);
+            setState(new TuiState(completed, s.messages, s.scrollOffset, false, ""));
+        }
+    }
+
     /** 提交用户输入 */
     private void submitInput(String text, TuiState s) {
         inputHistory.add(text);
         historyIndex = -1;
         savedInput = "";
+        updateCommandSuggestions(""); // 清除命令建议
 
         // 斜杠命令
         if (commandRegistry != null && commandRegistry.isCommand(text)) {
@@ -1203,6 +1271,52 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
     }
 
     // ==================== 工具方法 ====================
+
+    /** 计算匹配的斜杠命令（前缀匹配） */
+    private List<String> computeCommandSuggestions(String inputText) {
+        if (commandRegistry == null || !inputText.startsWith("/")) {
+            return List.of();
+        }
+        // 如果已经有空格，说明在输入参数，不再补全命令名
+        if (inputText.contains(" ")) {
+            return List.of();
+        }
+        String query = inputText.substring(1).toLowerCase();
+        if (query.isEmpty()) {
+            // 只输入了 "/"，返回所有命令
+            return commandRegistry.getCommands().stream()
+                    .map(cmd -> cmd.name())
+                    .distinct()
+                    .sorted()
+                    .toList();
+        }
+        // 前缀匹配
+        return commandRegistry.getCommandNames().stream()
+                .filter(name -> name.startsWith(query))
+                .sorted()
+                .toList();
+    }
+
+    /** 更新命令建议列表（输入变化时调用） */
+    private void updateCommandSuggestions(String inputText) {
+        commandSuggestions = computeCommandSuggestions(inputText);
+        tabCompletionIndex = -1; // 重置 Tab 循环
+    }
+
+    /** 获取第一个建议的补全后缀（用于 ghost text 显示） */
+    private String getGhostText(String inputText) {
+        if (!inputText.startsWith("/") || inputText.contains(" ")) return "";
+        String query = inputText.substring(1).toLowerCase();
+        if (query.isEmpty()) return "";
+        List<String> suggestions = commandSuggestions;
+        if (suggestions.isEmpty()) return "";
+        // 返回第一个匹配项的剩余部分
+        String firstMatch = suggestions.getFirst();
+        if (firstMatch.startsWith(query) && firstMatch.length() > query.length()) {
+            return firstMatch.substring(query.length());
+        }
+        return "";
+    }
 
     private boolean isPrintableInput(String input, Key key) {
         if (key.ctrl() || key.meta()) return false;
