@@ -265,7 +265,9 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
         return Box.of(visibleItems.toArray(new Renderable[0]))
                 .flexDirection(FlexDirection.COLUMN)
                 .paddingTop(1)
-                .paddingX(1);
+                .paddingX(1)
+                .height(Math.max(1, maxLines))
+                .overflow(io.mybatis.jink.style.Overflow.HIDDEN);
     }
 
     /** 将 UIMessage 渲染为 Renderable 列表（一条消息可能产生多行） */

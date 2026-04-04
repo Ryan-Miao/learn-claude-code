@@ -86,6 +86,7 @@ public class AskUserQuestionTool implements Tool {
 
         // 优先使用结构化回调（支持交互式选择）
         Object structuredCb = context.get(ASK_USER_STRUCTURED_CALLBACK);
+        log.debug("Structured callback type: {}", structuredCb != null ? structuredCb.getClass().getName() : "null");
         if (structuredCb instanceof java.util.function.BiFunction<?, ?, ?> biFn) {
             try {
                 var askFn = (java.util.function.BiFunction<String, java.util.List<String>, String>) biFn;
@@ -97,6 +98,9 @@ public class AskUserQuestionTool implements Tool {
             } catch (Exception e) {
                 log.debug("Structured callback failed, falling back", e);
             }
+        } else {
+            log.debug("Structured callback not a BiFunction, got: {}",
+                    structuredCb != null ? structuredCb.getClass().getInterfaces()[0] : "null");
         }
 
         // 回退到简单文本回调
