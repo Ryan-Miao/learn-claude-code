@@ -23,6 +23,19 @@ export function Sidebar() {
   return (
     <nav className="hidden w-56 shrink-0 md:block">
       <div className="sticky top-[calc(3.5rem+2rem)] space-y-5">
+        <div className="pb-4 border-b border-zinc-200 dark:border-zinc-700">
+          <Link
+            href={`/${locale}/chat`}
+            className={cn(
+              "flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors",
+              pathname.includes("/chat")
+                ? "bg-zinc-100 font-medium text-zinc-900 dark:bg-zinc-800 dark:text-white"
+                : "text-zinc-500 hover:bg-zinc-50 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800/50 dark:hover:text-zinc-300"
+            )}
+          >
+            <span>Chat</span>
+          </Link>
+        </div>
         {LAYERS.map((layer) => (
           <div key={layer.id}>
             <div className="flex items-center gap-1.5 pb-1.5">
