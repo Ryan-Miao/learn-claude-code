@@ -23,3 +23,6 @@ logging:
   level:
     com.demo.learn: DEBUG
     org.springframework.ai: INFO
+
+# HTTP 请求/响应日志已在 build.gradle.kts 中配置（ANTHROPIC_LOG=debug）
+# 覆盖：./gradlew :claude-learn:run -PmainClass=... -PanthropicLog=info

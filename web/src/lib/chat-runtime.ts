@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://192.168.3.7:8080";
 
 export interface ChatRequest {
   message: string;
@@ -16,6 +16,26 @@ export interface ChatResponse {
   text: string;
   thinking: string;
   toolCalls: ToolCall[];
+  apiRoundTrips?: ApiRoundTrip[];
+}
+
+export interface ApiRoundTrip {
+  round: number;
+  request: {
+    model: string;
+    systemPrompt: string;
+    messages: string[];
+    tools: string[];
+  };
+  response: {
+    text: string;
+    thinking: string;
+    finishReason: string;
+    inputTokens: number;
+    outputTokens: number;
+    durationMs: number;
+    toolCalls: { name: string; input: string }[];
+  };
 }
 
 export async function sendChatMessage(

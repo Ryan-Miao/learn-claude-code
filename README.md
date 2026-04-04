@@ -31,6 +31,7 @@ Claude Code = Agent Loop + @Tool + Context Compression + SubAgent + TaskSystem +
 | **Java 25 虚拟线程** | 轻量级并发，实现后台任务与多智能体协作 |
 | **源码追踪** | 文档深入到 Spring AI 框架源码，理解递归循环、Advisor Chain 等设计模式 |
 | **每课独立可运行** | `./gradlew :claude-learn:run -PmainClass=...` 一行命令启动 |
+| **Chat 交互学习** | Web 端实时对话 Agent，查看 API 往返、工具调用、Token 用量 |
 
 ## 12 课递进路线
 
@@ -152,10 +153,16 @@ ai:
 
 ### Web 学习平台
 
-交互式可视化、分步动画、源码查看器：
+交互式可视化、分步动画、源码查看器，以及 **Chat 交互对话**（实时与 Agent 对话，查看每次 API 往返的请求/响应、工具调用、Token 用量）：
 
 ```sh
 cd web && npm install && npm run dev   # http://localhost:3000
+```
+
+同时启动后端 API：
+
+```sh
+./gradlew :claude-learn:run -PmainClass=com.demo.learn.web.WebChatApp  # http://localhost:8080
 ```
 
 在线访问：https://ryan-miao.github.io/learn-claude-code/
@@ -171,11 +178,13 @@ learn-claude-code/
 |   |   |-- core/config/                  #     AiConfig 多 Provider 切换
 |   |   |-- core/tools/                   #     BashTool, ReadFileTool, WriteFileTool, EditFileTool
 |   |   |-- s01/ ~ s12/                   #     12 课递进
-|   |   +-- full/                         #     总纲: 全部机制合一
+|   |   |-- full/                         #     总纲: 全部机制合一
+|   |   +-- web/                          #     Chat Web API (Spring AI + Advisor)
 |   +-- src/main/resources/              #   application-local.yml.example
 |
 |-- docs/{en,zh,ja}/                      # 文档 (3 种语言, 含源码追踪)
 |-- web/                                  # 交互式学习平台 (Next.js)
+|   |-- src/components/chat/              #   Chat 交互对话 (Agent 选择、Monitor 面板)
 |-- skills/                               # s05 的 Skill 文件
 +-- settings.gradle.kts                   # include("claude-learn")
 ```
@@ -189,6 +198,7 @@ learn-claude-code/
 - **循环退出条件**：`isToolExecutionRequired()` vs `returnDirect()` 的两种退出路径
 - **6 层设计模式**：Builder、Fluent API、Advisor Chain、Strategy、Observation、Recursive + Callback
 - **工具设计模式**：万能/文件级/片段级/只读的四层粒度，`@Tool` description 对 AI 准确率的影响
+- **Advisor Chain**：`CallAdvisor` 拦截每次 LLM 调用，捕获请求/响应/Token 用量，用于 Chat Monitor
 
 ## 致谢
 

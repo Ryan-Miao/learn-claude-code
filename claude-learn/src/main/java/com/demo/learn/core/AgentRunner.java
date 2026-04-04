@@ -1,6 +1,5 @@
 package com.demo.learn.core;
 
-import com.demo.learn.core.config.ErrorHandlingInterceptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,10 +74,7 @@ public class AgentRunner {
 
     private static void handleException(String prefix, String input,
                                         Function<String, String> handler, Exception e) {
-        ErrorHandlingInterceptor.AgentApiException apiEx =
-                e instanceof ErrorHandlingInterceptor.AgentApiException
-                    ? (ErrorHandlingInterceptor.AgentApiException) e
-                    : null;
+        ApiException apiEx = e instanceof ApiException ? (ApiException) e : null;
 
         if (apiEx != null && apiEx.getErrorType().isRetryable()) {
             for (int i = 0; i < maxRetries; i++) {
@@ -97,10 +93,7 @@ public class AgentRunner {
                     }
                     return;
                 } catch (Exception retryEx) {
-                    ErrorHandlingInterceptor.AgentApiException retryApiEx =
-                            retryEx instanceof ErrorHandlingInterceptor.AgentApiException
-                                ? (ErrorHandlingInterceptor.AgentApiException) retryEx
-                                : null;
+                    ApiException retryApiEx = retryEx instanceof ApiException ? (ApiException) retryEx : null;
                     if (retryApiEx != null && !retryApiEx.getErrorType().isRetryable()) {
                         break;
                     }
@@ -115,7 +108,7 @@ public class AgentRunner {
         }
     }
 
-    private static String getErrorHint(ErrorHandlingInterceptor.ErrorType type) {
+    private static String getErrorHint(ApiException.ErrorType type) {
         switch (type) {
             case TIMEOUT:      return "请求超时";
             case IO_ERROR:     return "网络错误";

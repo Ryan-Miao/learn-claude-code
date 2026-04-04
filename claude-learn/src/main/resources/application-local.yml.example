@@ -42,6 +42,3 @@ ai:
 logging:
   level:
     com.demo.learn: DEBUG
-    com.demo.learn.core.config.HttpLoggingInterceptor: DEBUG  # HTTP 请求/响应日志，关闭设为 WARN 或删除此行
-    org.springframework.ai.anthropic: DEBUG
-    org.springframework.ai.anthropic.api.AnthropicApi: DEBUG

@@ -50,10 +50,14 @@ public class ChatController {
         List<ToolCallback> toolCallbacks =
                 AgentRegistry.buildToolCallbacks(request.agentId(), capturedCalls);
 
+        // Capture API round-trips during this request
+        List<HttpCaptureAdvisor.ApiRoundTrip> capturedRounds = new ArrayList<>();
+
         try {
-            // Build ChatClient with captured tool callbacks for this request
+            // Build ChatClient with captured tool callbacks and HTTP capture advisor
             ChatClient chatClient = ChatClient.builder(aiConfig.get())
                     .defaultToolCallbacks(toolCallbacks.toArray(new ToolCallback[0]))
+                    .defaultAdvisors(new HttpCaptureAdvisor(capturedRounds))
                     .build();
 
             // Get conversation history (system prompt + past messages + current user message)
@@ -102,6 +106,28 @@ public class ChatController {
                                     "name", c.name(),
                                     "input", c.input(),
                                     "output", c.output()))
+                            .toList(),
+                    "apiRoundTrips", capturedRounds.stream()
+                            .map(rt -> Map.<String, Object>of(
+                                    "round", rt.round(),
+                                    "request", Map.of(
+                                            "model", rt.request().model(),
+                                            "systemPrompt", rt.request().systemPrompt(),
+                                            "messages", rt.request().messages(),
+                                            "tools", rt.request().tools()
+                                    ),
+                                    "response", Map.of(
+                                            "text", rt.response().text(),
+                                            "thinking", rt.response().thinking(),
+                                            "finishReason", rt.response().finishReason(),
+                                            "inputTokens", rt.response().inputTokens(),
+                                            "outputTokens", rt.response().outputTokens(),
+                                            "durationMs", rt.response().durationMs(),
+                                            "toolCalls", rt.response().toolCalls().stream()
+                                                    .map(tc -> Map.<String, Object>of("name", tc.name(), "input", tc.input()))
+                                                    .toList()
+                                    )
+                            ))
                             .toList()
             ));
 

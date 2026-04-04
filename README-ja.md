@@ -284,7 +284,7 @@ mvn exec:java -Dexec.mainClass=com.demo.learn.full.SFullAgent
 
 ### Web プラットフォーム
 
-インタラクティブな可視化、ステップスルーアニメーション、ソースビューア、各セッションのドキュメント。
+インタラクティブな可視化、ステップスルーアニメーション、ソースビューア、各セッションのドキュメント、そして **Chat**（エージェントとリアルタイム対話、API 往復・ツール呼び出し・トークン使用量を確認）。
 
 ```sh
 cd web && npm install && npm run dev   # http://localhost:3000

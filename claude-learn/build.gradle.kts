@@ -40,4 +40,8 @@ tasks.register<JavaExec>("run") {
     })
     classpath = sourceSets["main"].runtimeClasspath
     standardInput = System.`in`
+
+    // Anthropic SDK HTTP 日志：debug=完整body, info=URL/headers, 空=关闭
+    // 可通过 -PanthropicLog= 覆盖，例如 -PanthropicLog=info
+    environment("ANTHROPIC_LOG", project.findProperty("anthropicLog")?.toString() ?: "debug")
 }

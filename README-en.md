@@ -284,10 +284,16 @@ mvn exec:java -Dexec.mainClass=com.demo.learn.full.SFullAgent
 
 ### Web Platform
 
-Interactive visualizations, step-through animations, source viewer, and documentation for each session.
+Interactive visualizations, step-through animations, source viewer, documentation, and **Chat** (live conversation with agents, view API round-trips, tool calls, and token usage).
 
 ```sh
 cd web && npm install && npm run dev   # http://localhost:3000
+```
+
+Start the backend API alongside:
+
+```sh
+./gradlew :claude-learn:run -PmainClass=com.demo.learn.web.WebChatApp  # http://localhost:8080
 ```
 
 ### Java Version Features
@@ -358,6 +364,7 @@ learn-claude-code/
 |-- agents/                        # Python reference implementations (original version, kept for comparison)
 |-- docs/{en,zh,ja}/               # Mental-model-first documentation (3 languages)
 |-- web/                           # Interactive learning platform (Next.js)
+|   |-- src/components/chat/      #   Chat UI (agent selector, monitor panel, markdown)
 |-- skills/                        # Skill files for s05
 |-- pom.xml                        # Maven build config (Spring Boot 3.5.7 + Spring AI 1.0.3)
 +-- .github/workflows/ci.yml      # CI: typecheck + build

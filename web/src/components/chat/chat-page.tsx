@@ -1,13 +1,44 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import {
   sendChatMessage,
   fetchAgents,
   type AgentInfo,
   type ToolCall,
+  type ApiRoundTrip,
 } from "@/lib/chat-runtime";
 import { AgentSelector } from "./agent-selector";
+import { MonitorPanel } from "./monitor-panel";
+import { unified } from "unified";
+import remarkParse from "remark-parse";
+import remarkGfm from "remark-gfm";
+import remarkRehype from "remark-rehype";
+import rehypeRaw from "rehype-raw";
+import rehypeHighlight from "rehype-highlight";
+import rehypeStringify from "rehype-stringify";
+
+function renderMarkdown(md: string): string {
+  const result = unified()
+    .use(remarkParse)
+    .use(remarkGfm)
+    .use(remarkRehype, { allowDangerousHtml: true })
+    .use(rehypeRaw)
+    .use(rehypeHighlight, { detect: false, ignoreMissing: true })
+    .use(rehypeStringify)
+    .processSync(md);
+  return String(result);
+}
+
+function MarkdownText({ content }: { content: string }) {
+  const html = useMemo(() => renderMarkdown(content), [content]);
+  return (
+    <div
+      className="chat-markdown"
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
+}
 
 interface Message {
   role: "user" | "assistant";
@@ -15,6 +46,7 @@ interface Message {
   thinking?: string;
   toolCalls?: ToolCall[];
   error?: string;
+  apiRoundTrips?: ApiRoundTrip[];
 }
 
 export function ChatPage() {
@@ -23,9 +55,14 @@ export function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [sessionId] = useState(() => crypto.randomUUID());
+  const [sessionId] = useState(() =>
+    crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  );
   const [expandedTools, setExpandedTools] = useState<Set<number>>(new Set());
   const [expandedThinking, setExpandedThinking] = useState<Set<number>>(
+    new Set()
+  );
+  const [expandedMonitoring, setExpandedMonitoring] = useState<Set<number>>(
     new Set()
   );
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -58,6 +95,14 @@ export function ChatPage() {
     });
   }, []);
 
+  const toggleMonitoring = useCallback((idx: number) => {
+    setExpandedMonitoring((prev) => {
+      const next = new Set(prev);
+      next.has(idx) ? next.delete(idx) : next.add(idx);
+      return next;
+    });
+  }, []);
+
   const handleSend = useCallback(async () => {
     const trimmed = input.trim();
     if (!trimmed || loading) return;
@@ -82,6 +127,10 @@ export function ChatPage() {
           toolCalls:
             res.toolCalls && res.toolCalls.length > 0
               ? res.toolCalls
+              : undefined,
+          apiRoundTrips:
+            res.apiRoundTrips && res.apiRoundTrips.length > 0
+              ? res.apiRoundTrips
               : undefined,
         },
       ]);
@@ -182,8 +231,22 @@ export function ChatPage() {
               })}
 
               {/* Text */}
-              {msg.text && (
-                <p className="whitespace-pre-wrap">{msg.text}</p>
+              {msg.text && <MarkdownText content={msg.text} />}
+
+              {/* Monitor button */}
+              {msg.apiRoundTrips && msg.apiRoundTrips.length > 0 && (
+                <div className="mt-1">
+                  <button
+                    onClick={() => toggleMonitoring(i)}
+                    className="flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300"
+                  >
+                    <span>{expandedMonitoring.has(i) ? "\u25BC" : "\u25B6"}</span>
+                    <span>Monitor ({msg.apiRoundTrips.length} rounds)</span>
+                  </button>
+                  {expandedMonitoring.has(i) && (
+                    <MonitorPanel roundTrips={msg.apiRoundTrips!} />
+                  )}
+                </div>
               )}
             </div>
           </div>
