@@ -192,27 +192,29 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
             lastLine = inputLines[inputLines.length - 1];
         }
 
-        // 光标定位（clamp 到 >= 0 防止小终端越界）
+        // 光标定位：仅在需要文本输入时显示光标，选择模式和 agent 运行时隐藏
         if (snapAskOptions != null && !snapAskOptions.isEmpty() && snapHasCallback) {
             if (snapAskInputMode) {
+                // AskUser 自由输入模式：光标在文本末尾
                 int askCursorRow = h - 2 - (snapAskOptions.size() - snapAskSelected);
                 setCursorPosition(Math.max(0, askCursorRow), 7 + StringWidth.width(s.inputText));
             } else {
-                int askCursorRow = h - 2 - (snapAskOptions.size() - snapAskSelected);
-                setCursorPosition(Math.max(0, askCursorRow), 6);
+                // AskUser 选择模式：❯ 标记已指示选中项，隐藏光标
+                setCursorPosition(-1, -1);
             }
         } else if (snapPermOptions != null && !snapPermOptions.isEmpty() && snapHasCallback) {
-            // 权限选择模式：光标在选中选项的 ❯ 位置
-            int permCursorRow = h - 2 - (snapPermOptions.size() - snapPermSelected);
-            setCursorPosition(Math.max(0, permCursorRow), 3);
+            // 权限选择模式：❯ 标记已指示选中项，隐藏光标
+            setCursorPosition(-1, -1);
+        } else if (agentRunning.get()) {
+            // Agent 运行中：无需输入，隐藏光标
+            setCursorPosition(-1, -1);
         } else if (historySearchMode) {
-            // 搜索模式：光标在搜索词 █ 的位置
-            // "(reverse-i-search)`" = 20 chars, then query, then "█"
+            // 搜索模式：光标在搜索词末尾
             int cursorRow = Math.max(0, h - 3);
             int cursorCol = 1 + 20 + StringWidth.width(historySearchQuery);
             setCursorPosition(cursorRow, cursorCol);
         } else {
-            // 正常模式：光标隐藏在块光标 █ 的位置
+            // 正常输入模式：光标在输入文本末尾
             int cursorRow = Math.max(0, h - 3);
             int cursorCol = 1 + PROMPT_WIDTH + StringWidth.width(lastLine);
             setCursorPosition(cursorRow, cursorCol);
