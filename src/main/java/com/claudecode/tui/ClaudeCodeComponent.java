@@ -234,12 +234,21 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
     private Renderable messagesArea(TuiState s, int maxLines) {
         List<Renderable> allItems = new ArrayList<>();
 
-        // 初始系统消息
-        allItems.add(msgLine(Color.BRIGHT_BLUE,
-                "Tools: " + toolCount + " | Commands: " + cmdCount + " | Work Dir: " + System.getProperty("user.dir")));
+        // 初始提示消息
+        allItems.add(Text.of(
+                Text.of("● ").color(Color.BRIGHT_BLUE),
+                Text.of("Ready. Describe a task or type ").color(Color.WHITE),
+                Text.of("/help").color(Color.BRIGHT_CYAN).bold(),
+                Text.of(" for available commands.").color(Color.WHITE)
+        ));
 
-        // 渲染所有消息
-        for (UIMessage msg : s.messages) {
+        // 渲染所有消息（带空行分隔）
+        for (int i = 0; i < s.messages.size(); i++) {
+            UIMessage msg = s.messages.get(i);
+            // 在用户消息前添加空行分隔（除了第一条）
+            if (msg instanceof UserMsg && i > 0) {
+                allItems.add(Text.of(" "));
+            }
             allItems.addAll(renderMessage(msg));
         }
 
