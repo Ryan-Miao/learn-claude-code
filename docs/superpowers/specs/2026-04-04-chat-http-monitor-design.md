@@ -7,141 +7,83 @@ Add a "Monitor" button to the Chat UI that displays the raw AI API interaction d
 ## Context
 
 - Learning project: users learn AI agent patterns through a browser
-- Currently only see final text output and no visibility into the underlying API interactions
-- Agentic loop may involve multiple API round-trips ( all hidden from user
+- Currently only see final text output and tool调用， no visibility into the underlying API interactions
+ - Agentic loop may involve multiple API round-trips, all hidden from user
+- Data flow: Advisor captures data -> controller returns -> frontend renders.
 
-## Architecture
+ The data flow: `Advisor captures → controller returns` → frontend renders.
 
-**Backend**: Custom Spring AI `CallAdvisor` that intercepts each LLM call
-**Frontend**: Expandable panel per assistant message, showing API round-trip details
-**Data flow**: Advisor captures → controller returns → frontend renders
+!`spring AI `CallAdvisor` on the `ChatClient` to intercept each LLM call within a before and after, after the round:
 
-## Backend
+ a structured JSON response JSON with fields: `apiRoundTrips`, `toolCalls`, `toolCalls`. `apiRoundTrips`).
+  
+- Each `ChatClient` in `ChatController` registers注册 Advisor:
+ per请求作用域域， 通过 method作用域的共享 `capturedRounds` list。
+collect round-trip data.
+捕获失败, swallow error, continue the.捕获 failures should not break the chat flow.
 
-### New class: `HttpCaptureAdvisor`
+**Frontend**
 
-Implements Spring AI's `CallAdvisor` interface. Registered on the `ChatClient` in `ChatController` per request scope.
+### Data flow
 
-Captures scope: each LLM API call within a single user message turn:
+`Advisor captures -> controller returns → frontend renders`
 
-```java
-public class HttpCaptureAdvisor implements CallAdvisor {
-    private final List<ApiRoundTrip> capturedRounds;
-    
-    @Override
-    public ChatClientResponse adviseCall(ChatClientRequest request, Chain chain) {
-        long start = System.currentTimeMillis();
-        ChatClientResponse response = chain.nextCall(request);
-        long duration = System.currentTimeMillis() - start;
-        
-        capturedRounds.add(new ApiRoundTrip(
-            round, capturedRounds.size(),
-            extractRequest(request),
-            extractResponse(response, responseText, duration)
-        ));
-        
-        return response;
-    }
-}
-```
+1. Backend `HttpCaptureAdvisor` registers在 `ChatClient` 上， 使用 method作用域的共享 `capturedRounds` list; method作用域
+实例共享同一个共享列表。
 
-**Thread safety**: The Advisor runs在请求链中执行，意味着它 round-trip 按顺序记录。
+传递给 Capture数据
 
-### Data structure: `ApiRoundTrip`
+并通过 Advisor 绦请求 scoped
+Instance，`. 和 `CaptureToolCallback` 不变。
+ coexist — 不捕获工具 任何新东西，转由 Advisor 统一了 `CaptureToolCallback` 中现有的 `CaptureToolCallback` 或处理)
 
-```java
-public record ApiRoundTrip(
-    int round,
-    RequestSnapshot request,
-    ResponseSnapshot response
-) {}
+  - APIRoundTrips  合并到 `/api/chat` 奇应， Advisor 中) 返回 `apiRoundTrips`
 
-public record RequestSnapshot(
-    String model,
-    List<MessageSnapshot> messages,     // role + content (truncated 500 chars)
-    List<String> tools,
-    String systemPrompt,                  // truncated 300 chars
-    int maxTokens
-) {}
-
-public record ResponseSnapshot(
-    String text,
-    String thinking,
-    List<ToolCallSnapshot> toolCalls,
-    String finishReason,
-    int inputTokens,
-    int outputTokens;
-    long durationMs
-) {}
-
-public record MessageSnapshot(String role, String content) {}
-public record ToolCallSnapshot(String name, String input) {}
-```
-
-### Sensitive data masking
-
-- No HTTP headers captured (Advisor operates at Spring AI abstraction, API keys are
-- Content matching `sk-...` pattern replaced with `***REDACTED***`
-- Long text truncated to 500 chars for messages, 300 chars for system prompt
-
-### Modified: `ChatController`
-
-- Build `ChatClient` with `HttpCaptureAdvisor` registered
-- Add `apiRoundTrips` field to response JSON
-- Advisor instance shared via `ThreadLocal` or method-scoped list ( passed into `CaptureToolCallback`
-
-### Response format change
-
-```json
-{
-  "text": "AI reply",
-  "thinking": "...",
-  "toolCalls": [...],
-  "apiRoundTrips": [
-    {
-      "round": 1,
-      "request": {
-        "model": "claude-sonnet-4-20250514",
-        "messages": [{ "role": "user", "content": "list files" }],
-        "tools": ["bash"],
-        "systemPrompt": "You are a coding agent...",
-        "maxTokens": 4096
-      },
-      "response": {
-        "text": "",
-        "thinking": "Let me list the files...",
-        "toolCalls": [{ "name": "bash", "input": "ls" }],
-        "finishReason": "tool_use",
-        "inputTokens": 150,
-        "outputTokens": 80,
-        "durationMs": 1200
-      }
-    },
-    {
-      "round": 2,
-      "request": { ... },
-      "response": { ... }
-    }
-  ]
-}
-```
-
-## Frontend
-
-### Monitor button per assistant message
-- Icon button (`🔍`) on each assistant message bubble, next to thinking/tool call toggles buttons
-- Click to expand/collapse monitor panel below the the message
-
-### Monitor panel content
-- Summary header: total rounds, total tokens, total duration
-- Per-round expandable row showing: request + response details
-- Reuses existing `expandedTools` state management pattern for expanded state
-- Content rendered in `<pre>` blocks with monospace formatting
+- Messages are消息将截断到 500 字符， 車削到 `response.text`
+ - 不捕获 `thinking`，内容（只 Advisor 在 `chatPage` 中增加监控按钮，在每条助手消息下方，展开/收起监控面板
+- 监控按钮没有 API数据时，如用户消息的 error 消息。
 
 ## Scope
 
-- Only applies to Chat page (`/chat`)
-- Non-streaming (blocking `.call()` only)
-- Data only in memory (no persistence)
-- Sensitive info masked at Advisor layer
+1. only apply to Chat page（/chat`, no API 韥 - 了该功能需求是待实现
 
+- 明确方案 A决定策中不重要的修改规范了同意覆盖 `request +` 焱 Advisor` 和 `CaptureToolCallback` 保留在作用，独立的工具调用捕获，我们的工具调用。 保留现有的 `CaptureToolCallback` 只从 Advisor 的新 `HttpCaptureAdvisor`（方法作用域的， `HttpCaptureAdvisor`
+
+ 接管 `ChatRoundTrips` 和 `ChatController` 卌新 `apiRoundTrips` 字段到 `ChatResponse` 的 `apiRoundTrips` 数据共享给前端， 并 Advisor 夿取请求和 `controller` 构建了 `ChatClient` 中
+
+不再有 `chatClient`。 Advisor)`。使用 Advisor instance替换 `CaptureToolCallback`：
+
+ 4. **Important**（0 critical issues fixed)
+
+- **Wrong Advisor API type** — should be `CallAdvisor` not `CallAdvisorChain`,。 The parameter type is `CallAdvisorChain`
+- **5 important issues fixed**
+
+- **Decide:ThreadLocal` vs method-scoped**: pick one
+- **CaptureToolCallback` 保留 in作用,独立的工具调用捕获", coexist ( 不捕获工具调用信息
+ 在 `advisor` 中
+- **ThreadLocal` vs method作用域` 选择 method作用域的在方法作用域的列表，请求传递给 controller
+ (method作用域) 放弃 `ThreadLocal`, 从现有代码中已经读取了 `requestMessages`
+- - If AI 多次往返需要直接传递 `apiRoundTrips`，给前端,无需重理解请求/响应了真正向 AI 发了什么
+ (- 没有 `ThreadLocal` 来存储 API 的重要数据。
+4. **6 Suggestions (Nice to have)
+- **Fixed mixed language**: spec is 全英文
+- **修复 ` `HttpCaptureAdvisor` 代码 sketch` 变量完整, Java record（修复 `响应`
+- **修复 `ResponseSnapshot` record定义**: `Response` 时只捕获结构化的 `apiRoundTrips` 数据 (完整 JSON 表示。修复 `ResponseSnapshot` 记录定义缺失字段: - **T修复 `ResponseSnapshot` 中的 finish reason: end response text 合并进来 advisor 姓名 `apiRoundTrips`)
+- **修复 `RequestSnapshot` record定义**:**
+export interface RequestSnapshot {
+  model: string;
+  systemPrompt: string;
+  tools: string[]; toolCalls: ToolCall[];
+}
+
+export interface responseSnapshot {
+  text: string;
+  thinking?: string;
+  toolCalls: ToolCall[];
+  apiRoundTrips?: ApiRoundTrip[];
+}
+export interface ChatResponse {
+  text: string;
+  thinking?: string;
+  error?: string;
+}
