@@ -266,20 +266,20 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
 
             case ToolCallMsg m -> {
                 List<Renderable> lines = new ArrayList<>();
-                String argPreview = m.args() != null && m.args().length() > 60
-                        ? m.args().substring(0, 60) + "..."
-                        : (m.args() != null ? m.args() : "");
+                String argSummary = extractToolSummary(m.toolName(), m.args());
                 if (m.running()) {
                     lines.add(Text.of(
                             Text.of("  ● ").color(Color.BRIGHT_BLUE),
                             Text.of(m.toolName()).color(Color.BRIGHT_CYAN).bold(),
-                            Text.of(" " + argPreview).dimmed()
+                            argSummary != null ? Text.of("(" + argSummary + ")").dimmed() : Text.of(""),
+                            Text.of("  running...").dimmed()
                     ));
                 } else {
                     lines.add(Text.of(
                             Text.of("  ● ").color(Color.BRIGHT_GREEN),
                             Text.of(m.toolName()).color(Color.BRIGHT_CYAN),
-                            Text.of(" ✓").color(Color.BRIGHT_GREEN)
+                            argSummary != null ? Text.of("(" + argSummary + ")").dimmed() : Text.of(""),
+                            Text.of("  done").dimmed()
                     ));
                     if (m.result() != null && !m.result().isBlank()) {
                         String preview = m.result().length() > 200
@@ -738,5 +738,31 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
     /** 获取 Agent 运行状态 */
     public boolean isAgentRunning() {
         return agentRunning.get();
+    }
+
+    /** 从 JSON 工具参数中提取人类可读的摘要 */
+    private static String extractToolSummary(String toolName, String args) {
+        if (args == null || args.isBlank()) return null;
+        try {
+            String[] keys = {"command", "file_path", "pattern", "query", "url"};
+            for (String key : keys) {
+                String search = "\"" + key + "\"";
+                if (args.contains(search)) {
+                    int start = args.indexOf(search);
+                    int valStart = args.indexOf("\"", start + search.length()) + 1;
+                    int valEnd = args.indexOf("\"", valStart);
+                    if (valStart > 0 && valEnd > valStart) {
+                        String val = args.substring(valStart, Math.min(valEnd, valStart + 60));
+                        return switch (key) {
+                            case "command" -> "$ " + val;
+                            case "pattern" -> "pattern: " + val;
+                            case "query" -> "\"" + val + "\"";
+                            default -> val;
+                        };
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+        return null;
     }
 }
