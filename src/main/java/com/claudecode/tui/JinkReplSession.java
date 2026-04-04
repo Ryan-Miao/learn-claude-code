@@ -93,8 +93,8 @@ public class JinkReplSession {
             conversationSummary = text.length() > 40 ? text.substring(0, 40) : text;
         });
 
-        // 启动 jink 渲染
-        inkApp = Ink.render(component);
+        // 启动 jink 渲染（exitOnCtrlC=false，让组件处理 Ctrl+C）
+        inkApp = Ink.render(component, false);
 
         // 拦截 System.out/err，防止日志干扰 TUI
         inkApp.patchConsole();
