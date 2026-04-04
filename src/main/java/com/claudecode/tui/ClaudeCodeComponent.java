@@ -92,6 +92,10 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
     private volatile boolean askInputMode = false;  // 是否在自由输入模式（选择"其他"后）
     private volatile String askQuestion;            // 当前问题文本
 
+    /** 权限确认交互模式状态 */
+    private volatile List<String> permissionOptions;    // 权限选项列表
+    private volatile int permissionSelectedIndex = 0;   // 当前选中索引
+
     /** 最近一次渲染的总行数（用于滚动限制） */
     private volatile int lastRenderedItemCount = 0;
     private volatile int lastMaxVisibleLines = 20;
@@ -135,11 +139,15 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
         final int snapAskSelected;
         final boolean snapAskInputMode;
         final boolean snapHasCallback;
+        final List<String> snapPermOptions;
+        final int snapPermSelected;
         synchronized (stateLock) {
             snapAskOptions = askOptions != null ? List.copyOf(askOptions) : null;
             snapAskSelected = askSelectedIndex;
             snapAskInputMode = askInputMode;
             snapHasCallback = permissionCallback != null;
+            snapPermOptions = permissionOptions != null ? List.copyOf(permissionOptions) : null;
+            snapPermSelected = permissionSelectedIndex;
         }
 
         // 计算输入区行数
@@ -148,6 +156,9 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
         if (snapAskOptions != null && !snapAskOptions.isEmpty() && snapHasCallback) {
             // AskUser 模式：选项数 + 提示行
             inputLineCount = snapAskOptions.size() + 1;
+        } else if (snapPermOptions != null && !snapPermOptions.isEmpty() && snapHasCallback) {
+            // 权限选择模式：标题行 + 选项数 + 提示行
+            inputLineCount = snapPermOptions.size() + 2;
         } else if (!s.inputText.isEmpty()) {
             String[] inputLines = s.inputText.split("\n", -1);
             inputLineCount = inputLines.length;
@@ -163,7 +174,12 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
                 int askCursorRow = h - 2 - (snapAskOptions.size() - snapAskSelected);
                 setCursorPosition(Math.max(0, askCursorRow), 6);
             }
+        } else if (snapPermOptions != null && !snapPermOptions.isEmpty() && snapHasCallback) {
+            // 权限选择模式：光标在选中选项的 ❯ 位置
+            int permCursorRow = h - 2 - (snapPermOptions.size() - snapPermSelected);
+            setCursorPosition(Math.max(0, permCursorRow), 3);
         } else {
+            // 正常模式：光标隐藏在块光标 █ 的位置
             int cursorRow = Math.max(0, h - 3);
             int cursorCol = 1 + PROMPT_WIDTH + StringWidth.width(lastLine);
             setCursorPosition(cursorRow, cursorCol);
@@ -282,12 +298,26 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
             allItems.addAll(renderMessage(msg));
         }
 
-        // Thinking 状态
-        if (s.thinking && !s.thinkingText.isEmpty()) {
-            allItems.add(Text.of(
-                    Text.of("◐ ").color(Color.BRIGHT_MAGENTA),
-                    Text.of("Thinking...").color(Color.BRIGHT_MAGENTA).italic()
-            ));
+        // Thinking / Processing 状态动画（显示在消息区底部）
+        if (agentRunning.get()) {
+            String spinner = SPINNER_FRAMES[spinnerFrame % SPINNER_FRAMES.length];
+            if (s.thinking && !s.thinkingText.isEmpty()) {
+                allItems.add(Text.of(
+                        Text.of(spinner + " ").color(Color.BRIGHT_YELLOW),
+                        Text.of("Thinking...").color(Color.BRIGHT_YELLOW).italic()
+                ));
+            } else if (s.thinking) {
+                allItems.add(Text.of(
+                        Text.of(spinner + " ").color(Color.BRIGHT_YELLOW),
+                        Text.of("Thinking...").color(Color.BRIGHT_YELLOW).italic()
+                ));
+            } else {
+                // Agent 运行中但未进入 thinking（如执行工具、准备调用等）
+                allItems.add(Text.of(
+                        Text.of(spinner + " ").color(Color.BRIGHT_CYAN),
+                        Text.of("Processing...").color(Color.BRIGHT_CYAN).italic()
+                ));
+            }
         }
 
         // 记录总行数和可见行数（供 scroll() 使用）
@@ -398,31 +428,23 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
 
             case PermissionMsg m -> {
                 List<Renderable> lines = new ArrayList<>();
+                // 蓝色分隔线
+                lines.add(Text.of("  ─────────────────────────────────────────").color(Color.BRIGHT_BLUE));
                 lines.add(Text.of(
-                        m.dangerous()
-                                ? Text.of("⚠ DANGEROUS Operation").color(Color.BRIGHT_RED).bold()
-                                : Text.of("⚠ Permission Required").color(Color.BRIGHT_YELLOW).bold()
+                        Text.of("  Tool use").color(Color.BRIGHT_RED).bold()
                 ));
+                // 工具名 + 参数
+                String argSummary = extractToolSummary(m.toolName(), m.args());
                 lines.add(Text.of(
-                        Text.of("  Tool: ").bold(),
-                        Text.of(m.toolName()).color(Color.BRIGHT_CYAN)
+                        Text.of("    "),
+                        Text.of(m.toolName()).color(Color.WHITE).bold(),
+                        argSummary != null ? Text.of("(" + argSummary + ")").dimmed() : Text.of("")
                 ));
+                // 动作描述
                 lines.add(Text.of(
-                        Text.of("  Action: "),
-                        Text.of(m.action()).color(Color.WHITE)
+                        Text.of("    "),
+                        Text.of(m.action()).dimmed()
                 ));
-                if (!m.answered()) {
-                    lines.add(Text.of(
-                            Text.of("  [Y]").color(Color.BRIGHT_GREEN),
-                            Text.of(" Allow  "),
-                            Text.of("[A]").color(Color.BRIGHT_GREEN),
-                            Text.of(" Always  "),
-                            Text.of("[N]").color(Color.BRIGHT_RED),
-                            Text.of(" Deny  "),
-                            Text.of("[D]").color(Color.BRIGHT_RED),
-                            Text.of(" Always deny")
-                    ));
-                }
                 yield lines;
             }
 
@@ -470,26 +492,31 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
             return renderAskUserArea(s, w);
         }
 
+        // 权限确认模式 — 也使用选项列表
+        if (permissionCallback != null && permissionOptions != null && !permissionOptions.isEmpty()) {
+            return renderPermissionSelectArea(s, w);
+        }
+
         Text prompt = Text.of("❯ ").color(Color.BRIGHT_GREEN).bold();
         Text content;
 
-        if (permissionCallback != null) {
-            // 权限确认模式
-            content = Text.of(s.inputText.isEmpty()
-                    ? "Y/a/n/d >"
-                    : s.inputText).color(Color.BRIGHT_YELLOW);
-        } else if (agentRunning.get()) {
-            // AI 正在运行 — 使用旋转动画
-            String spinner = SPINNER_FRAMES[spinnerFrame % SPINNER_FRAMES.length];
-            String label = s.thinking ? " Thinking..." : " Processing...";
-            content = Text.of(spinner + label).color(Color.BRIGHT_CYAN).dimmed();
-            prompt = Text.of("  ").dimmed();
+        if (agentRunning.get()) {
+            // AI 运行中 — 输入区只显示提示符 + 块光标
+            content = Text.of("█").color(Color.BRIGHT_WHITE);
         } else if (s.inputText.isEmpty()) {
-            content = Text.of("Type a message, / for commands, or Ctrl+D to exit").dimmed();
+            // 空输入 — 块光标 + 占位提示
+            content = Text.of(
+                    Text.of("█").color(Color.BRIGHT_WHITE),
+                    Text.of(" Type a message, / for commands").dimmed()
+            );
         } else {
+            // 有文字 — 文字 + 块光标
             String indent = " ".repeat(PROMPT_WIDTH);
             String displayText = s.inputText.replace("\n", "\n" + indent);
-            content = Text.of(displayText).color(Color.WHITE);
+            content = Text.of(
+                    Text.of(displayText).color(Color.WHITE),
+                    Text.of("█").color(Color.BRIGHT_WHITE)
+            );
         }
 
         return Box.of(
@@ -529,6 +556,31 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
                 .paddingX(1);
     }
 
+    /** 渲染权限确认选项列表 */
+    private Renderable renderPermissionSelectArea(TuiState s, int w) {
+        List<Renderable> lines = new ArrayList<>();
+
+        // "Do you want to proceed?" 提示
+        lines.add(Text.of("Do you want to proceed?").bold());
+
+        for (int i = 0; i < permissionOptions.size(); i++) {
+            boolean selected = (i == permissionSelectedIndex);
+            String prefix = selected ? "❯ " : "  ";
+            lines.add(Text.of(
+                    Text.of(prefix).color(selected ? Color.BRIGHT_CYAN : null),
+                    Text.of((i + 1) + ". ").color(selected ? Color.BRIGHT_CYAN : null),
+                    Text.of(permissionOptions.get(i)).color(selected ? Color.BRIGHT_CYAN : null)
+            ));
+        }
+
+        // 提示行
+        lines.add(Text.of("Esc to cancel · Tab to amend").dimmed());
+
+        return Box.of(lines.toArray(new Renderable[0]))
+                .flexDirection(FlexDirection.COLUMN)
+                .paddingX(1);
+    }
+
     /** 快捷键栏 */
     private Renderable shortcutBar(int w) {
         // Token 统计
@@ -541,11 +593,16 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
             }
         }
 
-        // Ctrl+C 双击退出提示
+        // 根据当前模式显示不同的快捷键提示
         boolean ctrlCPending = (System.currentTimeMillis() - lastCtrlCTime) < CTRL_C_EXIT_WINDOW_MS;
-        Renderable leftText = ctrlCPending
-                ? Text.of("Press Ctrl-C again to exit").color(Color.BRIGHT_YELLOW)
-                : Text.of("↑↓ history  Esc interrupt").dimmed();
+        Renderable leftText;
+        if (ctrlCPending) {
+            leftText = Text.of("Press Ctrl-C again to exit").color(Color.BRIGHT_YELLOW);
+        } else if (agentRunning.get()) {
+            leftText = Text.of("esc to interrupt").dimmed();
+        } else {
+            leftText = Text.of("↑↓ history  Esc interrupt").dimmed();
+        }
 
         return Box.of(
                 leftText,
@@ -605,12 +662,14 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
                 return;
             }
 
-            // 权限确认模式 / AskUser 模式
+            // 权限确认模式 / AskUser 模式 / 简单文本输入
             if (permissionCallback != null) {
                 if (askOptions != null && !askOptions.isEmpty()) {
                     handleAskUserInput(input, key, s);
-                } else {
+                } else if (permissionOptions != null && !permissionOptions.isEmpty()) {
                     handlePermissionInput(input, key, s);
+                } else {
+                    handleTextInput(input, key, s);
                 }
                 return;
             }
@@ -673,21 +732,71 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
         }
     }
 
-    /** 处理权限确认输入 */
-    private void handlePermissionInput(String input, Key key, TuiState s) {
+    /** 处理简单文本输入（无选项的 AskUser） */
+    private void handleTextInput(String input, Key key, TuiState s) {
         if (key.return_()) {
-            String answer = s.inputText.isEmpty() ? "y" : s.inputText;
+            String answer = s.inputText;
+            Consumer<String> cb = permissionCallback;
+            permissionCallback = null;
+            setState(new TuiState("", s.messages, 0, false, ""));
+            if (cb != null && !answer.isEmpty()) {
+                Thread.startVirtualThread(() -> cb.accept(answer));
+            }
+        } else if (key.escape()) {
             Consumer<String> cb = permissionCallback;
             permissionCallback = null;
             setState(new TuiState("", s.messages, 0, false, ""));
             if (cb != null) {
-                Thread.startVirtualThread(() -> cb.accept(answer));
+                Thread.startVirtualThread(() -> cb.accept("(User cancelled)"));
             }
         } else if (key.backspace() && !s.inputText.isEmpty()) {
             setState(new TuiState(s.inputText.substring(0, s.inputText.length() - 1),
                     s.messages, s.scrollOffset, false, ""));
         } else if (!input.isEmpty() && isPrintableInput(input, key)) {
             setState(new TuiState(s.inputText + input, s.messages, s.scrollOffset, false, ""));
+        }
+    }
+
+    /** 处理权限确认输入（交互选择模式） */
+    private void handlePermissionInput(String input, Key key, TuiState s) {
+        if (permissionOptions == null || permissionOptions.isEmpty()) return;
+
+        if (key.return_()) {
+            // 确认选择 → 将选中项映射为 y/a/n
+            String answer = switch (permissionSelectedIndex) {
+                case 0 -> "y";   // Yes
+                case 1 -> "a";   // Yes, and don't ask again (always allow)
+                case 2 -> "n";   // No
+                default -> "y";
+            };
+            Consumer<String> cb = permissionCallback;
+            permissionCallback = null;
+            permissionOptions = null;
+            setState(new TuiState("", s.messages, 0, false, ""));
+            if (cb != null) {
+                Thread.startVirtualThread(() -> cb.accept(answer));
+            }
+        } else if (key.escape()) {
+            // Esc: 取消 → 等同于 No
+            Consumer<String> cb = permissionCallback;
+            permissionCallback = null;
+            permissionOptions = null;
+            setState(new TuiState("", s.messages, 0, false, ""));
+            if (cb != null) {
+                Thread.startVirtualThread(() -> cb.accept("n"));
+            }
+        } else if (key.upArrow()) {
+            permissionSelectedIndex = Math.max(0, permissionSelectedIndex - 1);
+            setState(new TuiState(s.inputText, s.messages, s.scrollOffset, s.thinking, s.thinkingText));
+        } else if (key.downArrow()) {
+            permissionSelectedIndex = Math.min(permissionOptions.size() - 1, permissionSelectedIndex + 1);
+            setState(new TuiState(s.inputText, s.messages, s.scrollOffset, s.thinking, s.thinkingText));
+        } else if ("1".equals(input) || "2".equals(input) || "3".equals(input)) {
+            int idx = Integer.parseInt(input) - 1;
+            if (idx >= 0 && idx < permissionOptions.size()) {
+                permissionSelectedIndex = idx;
+                setState(new TuiState(s.inputText, s.messages, s.scrollOffset, s.thinking, s.thinkingText));
+            }
         }
     }
 
@@ -952,12 +1061,37 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
         }
     }
 
-    /** 设置权限确认回调 */
-    public void requestPermission(Consumer<String> callback) {
+    /** 设置简单文本输入回调（用于无选项的 AskUser） */
+    public void requestTextInput(Consumer<String> callback) {
         this.askOptions = null;
         this.askInputMode = false;
         this.askQuestion = null;
+        this.permissionOptions = null;
         this.permissionCallback = callback;
+    }
+
+    /** 设置权限确认回调（交互选择模式） */
+    public void requestPermission(String toolName, String suggestedRule, Consumer<String> callback) {
+        this.askOptions = null;
+        this.askInputMode = false;
+        this.askQuestion = null;
+        // 构建权限选项（匹配原版 Claude Code 格式）
+        List<String> options = new ArrayList<>();
+        options.add("Yes");
+        if (suggestedRule != null) {
+            options.add("Yes, and don't ask again for " + toolName + " commands in " + System.getProperty("user.dir", "."));
+        } else {
+            options.add("Yes, and don't ask again for " + toolName);
+        }
+        options.add("No");
+        this.permissionOptions = options;
+        this.permissionSelectedIndex = 0;
+        this.permissionCallback = callback;
+        // 触发重绘
+        synchronized (stateLock) {
+            TuiState s = getState();
+            setState(new TuiState("", s.messages, s.scrollOffset, s.thinking, s.thinkingText));
+        }
     }
 
     /** 设置 AskUser 交互模式（带可选列表） */

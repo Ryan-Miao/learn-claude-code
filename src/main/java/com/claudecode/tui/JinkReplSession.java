@@ -183,9 +183,9 @@ public class JinkReplSession {
                 false
         ));
 
-        // 使用 CompletableFuture 阻塞等待用户输入
+        // 使用 CompletableFuture 阻塞等待用户选择
         CompletableFuture<String> future = new CompletableFuture<>();
-        component.requestPermission(future::complete);
+        component.requestPermission(request.toolName(), suggestedRule, future::complete);
 
         try {
             String answer = future.get();
@@ -197,12 +197,6 @@ public class JinkReplSession {
                             "✓ Rule saved: always allow " + (suggestedRule != null ? suggestedRule : request.toolName()),
                             Color.BRIGHT_GREEN));
                     yield PermissionChoice.ALWAYS_ALLOW;
-                }
-                case "d" -> {
-                    component.addMessage(new SystemMsg(
-                            "✗ Rule saved: always deny " + (suggestedRule != null ? suggestedRule : request.toolName()),
-                            Color.BRIGHT_RED));
-                    yield PermissionChoice.ALWAYS_DENY;
                 }
                 case "n", "no" -> {
                     component.addMessage(new SystemMsg("✗ Operation denied", Color.BRIGHT_RED));
@@ -222,7 +216,7 @@ public class JinkReplSession {
         component.addMessage(new SystemMsg(prompt, Color.BRIGHT_CYAN));
 
         CompletableFuture<String> future = new CompletableFuture<>();
-        component.requestPermission(future::complete);
+        component.requestTextInput(future::complete);
 
         try {
             return future.get();
@@ -245,7 +239,7 @@ public class JinkReplSession {
             component.requestAskUser(question, options, future::complete);
         } else {
             // 无选项 — 使用普通输入
-            component.requestPermission(future::complete);
+            component.requestTextInput(future::complete);
         }
 
         try {
