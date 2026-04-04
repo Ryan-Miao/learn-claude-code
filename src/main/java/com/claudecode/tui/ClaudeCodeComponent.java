@@ -77,6 +77,11 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
     private String savedInput = "";
     private final AtomicBoolean agentRunning = new AtomicBoolean(false);
 
+    /** 思考动画帧 */
+    private static final String[] SPINNER_FRAMES = {"◐", "◓", "◑", "◒"};
+    private volatile int spinnerFrame = 0;
+    private volatile Thread spinnerThread;
+
     /** 权限确认回调（由权限请求设置，用户输入后调用） */
     private volatile Consumer<String> permissionCallback;
 
@@ -125,7 +130,7 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
         int cursorCol = 1 + PROMPT_WIDTH + StringWidth.width(lastLine);
         setCursorPosition(cursorRow, cursorCol);
 
-        int headerHeight = 7;
+        int headerHeight = 8; // 6 content rows + 2 border lines
         int bottomHeight = 4 + inputLineCount;
         int messagePaddingTop = 1;
         int maxMessageLines = h - headerHeight - bottomHeight - messagePaddingTop;
@@ -142,40 +147,57 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
         ).flexDirection(FlexDirection.COLUMN).width(w).height(h);
     }
 
-    /** 标题框（圆角洋红色边框） */
+    /** 标题框 — 保留原始 ASCII Logo 样式（双列布局） */
     private Renderable headerBox(int w) {
-        return Box.of(
-                Text.of(
-                        Text.of("☕").color(Color.BRIGHT_YELLOW),
-                        Text.of("  "),
-                        Text.of("Claude Code").color(Color.BRIGHT_MAGENTA).bold(),
-                        Text.of(" (Java)").color(Color.WHITE),
-                        Text.of(" v" + BannerPrinter.getVersion()).dimmed()
-                ),
-                Text.of(
-                        Text.of("▸ ").color(Color.BRIGHT_CYAN),
-                        Text.of("API: ").dimmed(),
-                        Text.of(baseUrl).color(Color.BRIGHT_CYAN)
-                ),
-                Text.of(
-                        Text.of("▸ ").color(Color.BRIGHT_CYAN),
-                        Text.of("Provider: ").dimmed(),
-                        Text.of(provider.toUpperCase()).color(Color.BRIGHT_GREEN),
-                        Text.of("  Model: ").dimmed(),
-                        Text.of(model).color(Color.BRIGHT_GREEN)
-                ),
-                Text.of(" "),
-                Text.of(
-                        Text.of("Tip: ").dimmed(),
-                        Text.of("/help").color(Color.BRIGHT_CYAN).bold(),
-                        Text.of(" for commands • ").dimmed(),
-                        Text.of("Ctrl+D").color(Color.BRIGHT_CYAN).bold(),
-                        Text.of(" to exit").dimmed()
-                )
-        ).flexDirection(FlexDirection.COLUMN)
+        // ASCII 冒烟咖啡杯
+        String[] logo = {
+                "       ) ) )       ",
+                "    ╭────────╮     ",
+                "    │ ~~~~~~ │─╮   ",
+                "    │ CLAUDE │ │   ",
+                "    │  CODE  │─╯   ",
+                "    ╰─┬────┬─╯     "
+        };
+        // 右侧信息
+        String[] info = {
+                "",
+                "Welcome!",
+                "API: " + baseUrl,
+                "Protocol: " + provider.toUpperCase() + "  Model: " + model,
+                "Work Dir: " + System.getProperty("user.dir", "."),
+                "Tools: " + toolCount + " | Commands: " + cmdCount
+        };
+
+        // 构建双列文本行
+        int logoWidth = 19;
+        int sepWidth = 3; // " │ "
+        int rightWidth = Math.max(0, w - 4 - logoWidth - sepWidth - 2); // 4=border+padding
+
+        List<Renderable> rows = new ArrayList<>();
+        int maxRows = Math.max(logo.length, info.length);
+        for (int i = 0; i < maxRows; i++) {
+            String left = i < logo.length ? logo[i] : "";
+            String right = i < info.length ? info[i] : "";
+            // 补齐左侧
+            if (left.length() < logoWidth) left = left + " ".repeat(logoWidth - left.length());
+            // 截断右侧
+            if (right.length() > rightWidth) right = right.substring(0, rightWidth);
+            // 右侧补齐
+            right = right + " ".repeat(Math.max(0, rightWidth - right.length()));
+
+            rows.add(Text.of(
+                    Text.of(left).color(Color.BRIGHT_CYAN),
+                    Text.of(" │ ").dimmed(),
+                    i == 1 ? Text.of(right).bold() : Text.of(right).dimmed()
+            ));
+        }
+
+        return Box.of(rows.toArray(new Renderable[0]))
+                .flexDirection(FlexDirection.COLUMN)
                 .borderStyle(BorderStyle.ROUND)
                 .borderColor(Color.BRIGHT_MAGENTA)
-                .paddingX(1);
+                .paddingX(1)
+                .width(w);
     }
 
     /** 消息列表（带虚拟滚动） */
@@ -236,30 +258,35 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
                     }
                     yield lines;
                 }
-                // 将多行文本拆分为单独的行
-                String[] textLines = text.split("\n", -1);
-                for (int i = 0; i < textLines.length; i++) {
-                    String line = textLines[i];
-                    if (i == 0) {
-                        // 首行带 ● 前缀
-                        String displayLine = line;
-                        if (m.streaming() && i == textLines.length - 1) {
-                            displayLine += "▌";
+
+                if (!m.streaming()) {
+                    // 已完成的消息 — 使用 Markdown 渲染
+                    List<Renderable> mdLines = MarkdownToText.convert(text);
+                    for (int i = 0; i < mdLines.size(); i++) {
+                        if (i == 0) {
+                            lines.add(Text.of(Text.of("● ").color(Color.BRIGHT_CYAN), mdLines.get(i)));
+                        } else {
+                            lines.add(Text.of(Text.of("  "), mdLines.get(i)));
                         }
-                        lines.add(Text.of(
-                                Text.of("● ").color(Color.BRIGHT_CYAN),
-                                Text.of(displayLine).color(Color.WHITE)
-                        ));
-                    } else {
-                        // 续行缩进对齐
-                        String displayLine = line;
-                        if (m.streaming() && i == textLines.length - 1) {
-                            displayLine += "▌";
+                    }
+                } else {
+                    // 流式中 — 直接按行显示带光标
+                    String[] textLines = text.split("\n", -1);
+                    for (int i = 0; i < textLines.length; i++) {
+                        String line = textLines[i];
+                        String displayLine = (m.streaming() && i == textLines.length - 1)
+                                ? line + "▌" : line;
+                        if (i == 0) {
+                            lines.add(Text.of(
+                                    Text.of("● ").color(Color.BRIGHT_CYAN),
+                                    Text.of(displayLine).color(Color.WHITE)
+                            ));
+                        } else {
+                            lines.add(Text.of(
+                                    Text.of("  ").dimmed(),
+                                    Text.of(displayLine).color(Color.WHITE)
+                            ));
                         }
-                        lines.add(Text.of(
-                                Text.of("  ").dimmed(),
-                                Text.of(displayLine).color(Color.WHITE)
-                        ));
                     }
                 }
                 yield lines;
@@ -388,8 +415,10 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
                     ? "Y/a/n/d >"
                     : s.inputText).color(Color.BRIGHT_YELLOW);
         } else if (agentRunning.get()) {
-            // AI 正在运行
-            content = Text.of(s.thinking ? "◐ Thinking..." : "● Processing...").color(Color.BRIGHT_CYAN).dimmed();
+            // AI 正在运行 — 使用旋转动画
+            String spinner = SPINNER_FRAMES[spinnerFrame % SPINNER_FRAMES.length];
+            String label = s.thinking ? " Thinking..." : " Processing...";
+            content = Text.of(spinner + label).color(Color.BRIGHT_CYAN).dimmed();
             prompt = Text.of("  ").dimmed();
         } else if (s.inputText.isEmpty()) {
             content = Text.of("Type a message, / for commands, or Ctrl+D to exit").dimmed();
@@ -417,19 +446,10 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
         }
 
         return Box.of(
-                Text.of(
-                        Text.of("↑↓").dimmed(),
-                        Text.of(" history").dimmed(),
-                        Text.of("  "),
-                        Text.of("wheel").dimmed(),
-                        Text.of(" scroll").dimmed(),
-                        Text.of("  "),
-                        Text.of("Ctrl+D").dimmed(),
-                        Text.of(" exit").dimmed()
-                ),
+                Text.of("↑↓ history  wheel scroll  Ctrl+D exit").dimmed(),
                 Spacer.create(),
                 Text.of(tokenInfo).color(Color.BRIGHT_GREEN)
-        ).paddingX(1);
+        ).paddingX(1).height(1);
     }
 
     private String formatTokens(long tokens) {
@@ -589,6 +609,7 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
     /** 在后台线程运行 Agent 循环 */
     private void runAgent(String userInput) {
         agentRunning.set(true);
+        startSpinner();
 
         Thread.startVirtualThread(() -> {
             long startTime = System.currentTimeMillis();
@@ -609,6 +630,7 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
             } catch (Exception e) {
                 addMessage(new SystemMsg("Error: " + e.getMessage(), Color.BRIGHT_RED));
             } finally {
+                stopSpinner();
                 agentRunning.set(false);
                 synchronized (stateLock) {
                     TuiState cs = getState();
@@ -616,6 +638,34 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
                 }
             }
         });
+    }
+
+    /** 启动思考动画 */
+    private void startSpinner() {
+        spinnerFrame = 0;
+        Thread t = Thread.startVirtualThread(() -> {
+            try {
+                while (!Thread.currentThread().isInterrupted()) {
+                    Thread.sleep(120);
+                    spinnerFrame++;
+                    // 触发重绘：读取当前状态并重新设置（内容不变，但 spinner 帧已更新）
+                    synchronized (stateLock) {
+                        TuiState s = getState();
+                        setState(new TuiState(s.inputText, s.messages, s.scrollOffset, s.thinking, s.thinkingText));
+                    }
+                }
+            } catch (InterruptedException ignored) {}
+        });
+        spinnerThread = t;
+    }
+
+    /** 停止思考动画 */
+    private void stopSpinner() {
+        Thread t = spinnerThread;
+        if (t != null) {
+            t.interrupt();
+            spinnerThread = null;
+        }
     }
 
     // ==================== 消息管理 ====================
