@@ -67,7 +67,6 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
     private final String model;
     private final String baseUrl;
     private final int toolCount;
-    private final int cmdCount;
     private final TokenTracker tokenTracker;
     private final Runnable onExit;
 
@@ -97,6 +96,10 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
     private volatile int lastRenderedItemCount = 0;
     private volatile int lastMaxVisibleLines = 20;
 
+    /** Ctrl+C 双击退出：上次按下时间 */
+    private volatile long lastCtrlCTime = 0;
+    private static final long CTRL_C_EXIT_WINDOW_MS = 2000; // 2秒内再按一次退出
+
     /** 首次用户输入回调（用于 conversation summary） */
     private Consumer<String> onFirstUserInput;
 
@@ -104,7 +107,7 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
                                CommandRegistry commandRegistry,
                                ToolRegistry toolRegistry,
                                String provider, String model, String baseUrl,
-                               int toolCount, int cmdCount,
+                               int toolCount,
                                TokenTracker tokenTracker,
                                Runnable onExit) {
         super(TuiState.empty());
@@ -115,7 +118,6 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
         this.model = model;
         this.baseUrl = baseUrl;
         this.toolCount = toolCount;
-        this.cmdCount = cmdCount;
         this.tokenTracker = tokenTracker;
         this.onExit = onExit;
     }
@@ -539,8 +541,14 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
             }
         }
 
+        // Ctrl+C 双击退出提示
+        boolean ctrlCPending = (System.currentTimeMillis() - lastCtrlCTime) < CTRL_C_EXIT_WINDOW_MS;
+        Renderable leftText = ctrlCPending
+                ? Text.of("Press Ctrl-C again to exit").color(Color.BRIGHT_YELLOW)
+                : Text.of("↑↓ history  Esc interrupt").dimmed();
+
         return Box.of(
-                Text.of("↑↓ history  Esc interrupt  Ctrl+D exit").dimmed(),
+                leftText,
                 Spacer.create(),
                 Text.of(tokenInfo).color(Color.BRIGHT_GREEN)
         ).paddingX(1).height(1);
@@ -565,13 +573,34 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
                 return;
             }
 
-            // Ctrl+C: 取消当前输入或中断 Agent
+            // Ctrl+C: 中断 Agent 或双击退出
             if (key.ctrl() && "c".equals(input)) {
                 if (agentRunning.get()) {
+                    // Agent 运行中 → 取消任务
                     agentLoop.cancel();
                     addMessageInternal(new SystemMsg("^C (interrupt)", Color.BRIGHT_YELLOW), s);
+                    lastCtrlCTime = System.currentTimeMillis();
                 } else {
-                    setState(new TuiState("", s.messages, s.scrollOffset, false, ""));
+                    long now = System.currentTimeMillis();
+                    if (now - lastCtrlCTime < CTRL_C_EXIT_WINDOW_MS) {
+                        // 第二次 Ctrl+C → 退出
+                        if (onExit != null) onExit.run();
+                    } else {
+                        // 第一次 Ctrl+C → 清空输入 + 提示再按一次退出
+                        lastCtrlCTime = now;
+                        setState(new TuiState("", s.messages, s.scrollOffset, false, ""));
+                        // 启动定时器，超时后清除提示
+                        Thread.startVirtualThread(() -> {
+                            try { Thread.sleep(CTRL_C_EXIT_WINDOW_MS); } catch (InterruptedException ignored) {}
+                            // 超时后刷新显示（清除 "Press Ctrl-C again to exit" 提示）
+                            synchronized (stateLock) {
+                                if (System.currentTimeMillis() - lastCtrlCTime >= CTRL_C_EXIT_WINDOW_MS) {
+                                    TuiState cur = getState();
+                                    setState(new TuiState(cur.inputText, cur.messages, cur.scrollOffset, cur.thinking, cur.thinkingText));
+                                }
+                            }
+                        });
+                    }
                 }
                 return;
             }

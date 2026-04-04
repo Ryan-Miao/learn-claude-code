@@ -79,7 +79,6 @@ public class JinkReplSession {
                 providerInfo.model(),
                 providerInfo.baseUrl(),
                 toolRegistry.size(),
-                commandRegistry.getCommands().size(),
                 tokenTracker,
                 this::exit
         );
