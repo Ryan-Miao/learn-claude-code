@@ -110,6 +110,9 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
     private volatile int lastRenderedItemCount = 0;
     private volatile int lastMaxVisibleLines = 20;
 
+    /** 输入光标位置（0 = 最左端, inputText.length() = 最右端/末尾） */
+    private volatile int inputCursorPos = 0;
+
     /** Ctrl+C 双击退出：上次按下时间 */
     private volatile long lastCtrlCTime = 0;
     private static final long CTRL_C_EXIT_WINDOW_MS = 800; // 800ms内再按一次退出（匹配官方）
@@ -181,17 +184,24 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
 
         // 计算输入区行数
         int inputLineCount = 1;
-        String lastLine = s.inputText;
+        // 计算光标所在行的光标前文本（用于终端光标定位）
+        int cursorPos = Math.min(inputCursorPos, s.inputText.length());
+        String textBeforeCursor = s.inputText.substring(0, cursorPos);
+        String cursorLine; // 光标所在行中，光标之前的文本
         if (snapAskOptions != null && !snapAskOptions.isEmpty() && snapHasCallback) {
-            // AskUser 模式：选项数 + 提示行
             inputLineCount = snapAskOptions.size() + 1;
+            cursorLine = s.inputText;
         } else if (snapPermOptions != null && !snapPermOptions.isEmpty() && snapHasCallback) {
-            // 权限选择模式：标题行 + 选项数 + 提示行
             inputLineCount = snapPermOptions.size() + 2;
+            cursorLine = s.inputText;
         } else if (!s.inputText.isEmpty()) {
             String[] inputLines = s.inputText.split("\n", -1);
             inputLineCount = inputLines.length;
-            lastLine = inputLines[inputLines.length - 1];
+            // 光标所在行：从光标前文本中提取最后一行
+            int lastNewline = textBeforeCursor.lastIndexOf('\n');
+            cursorLine = (lastNewline >= 0) ? textBeforeCursor.substring(lastNewline + 1) : textBeforeCursor;
+        } else {
+            cursorLine = "";
         }
 
         // 光标定位：仅在需要文本输入时显示光标，选择模式和 agent 运行时隐藏
@@ -216,10 +226,9 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
             int cursorCol = 1 + 20 + StringWidth.width(historySearchQuery);
             setCursorPosition(cursorRow, cursorCol);
         } else {
-            // 正常输入模式：光标在输入文本末尾
-            int cursorRow = Math.max(0, h - 3);
-            int cursorCol = 1 + PROMPT_WIDTH + StringWidth.width(lastLine);
-            setCursorPosition(cursorRow, cursorCol);
+            // 正常输入模式：光标在 inputCursorPos 位置
+            // 隐藏终端硬件光标（用渲染的 inverse 字符作为可见光标）
+            setCursorPosition(-1, -1);
         }
 
         int bottomHeight = 4 + inputLineCount;
@@ -564,29 +573,43 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
         Text content;
 
         if (agentRunning.get()) {
-            // AI 运行中 — 输入区只显示提示符 + 块光标
             content = Text.of("█").color(Color.BRIGHT_WHITE);
         } else if (s.inputText.isEmpty()) {
-            // 空输入 — 块光标 + 占位提示
             content = Text.of(
-                    Text.of("█").color(Color.BRIGHT_WHITE),
+                    Text.of(" ").inverse(),
                     Text.of(" Type a message, / for commands").dimmed()
             );
         } else {
-            // 有文字 — 文字 + 块光标 + ghost text（命令补全提示）
+            // 光标位置（clamp 防止越界）
+            int pos = Math.min(inputCursorPos, s.inputText.length());
             String indent = " ".repeat(PROMPT_WIDTH);
-            String displayText = s.inputText.replace("\n", "\n" + indent);
-            String ghost = getGhostText(s.inputText);
-            if (!ghost.isEmpty()) {
-                content = Text.of(
-                        Text.of(displayText).color(Color.WHITE),
-                        Text.of(ghost).dimmed(),
-                        Text.of("█").color(Color.BRIGHT_WHITE)
-                );
+            if (pos >= s.inputText.length()) {
+                // 光标在末尾 — 文字 + ghost text + 块光标
+                String displayText = s.inputText.replace("\n", "\n" + indent);
+                String ghost = getGhostText(s.inputText);
+                if (!ghost.isEmpty()) {
+                    content = Text.of(
+                            Text.of(displayText).color(Color.WHITE),
+                            Text.of(ghost).dimmed(),
+                            Text.of(" ").inverse()
+                    );
+                } else {
+                    content = Text.of(
+                            Text.of(displayText).color(Color.WHITE),
+                            Text.of(" ").inverse()
+                    );
+                }
             } else {
+                // 光标在中间 — [before] + [char under cursor inverted] + [after]
+                String before = s.inputText.substring(0, pos);
+                String cursorChar = String.valueOf(s.inputText.charAt(pos));
+                String after = s.inputText.substring(pos + 1);
+                String displayBefore = before.replace("\n", "\n" + indent);
+                String displayAfter = after.replace("\n", "\n" + indent);
                 content = Text.of(
-                        Text.of(displayText).color(Color.WHITE),
-                        Text.of("█").color(Color.BRIGHT_WHITE)
+                        Text.of(displayBefore).color(Color.WHITE),
+                        Text.of(cursorChar).inverse(),
+                        Text.of(displayAfter).color(Color.WHITE)
                 );
             }
         }
@@ -747,6 +770,7 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
                     } else {
                         // 第一次 Ctrl+C → 清空输入 + 提示再按一次退出
                         lastCtrlCTime = now;
+                        inputCursorPos = 0;
                         setState(new TuiState("", s.messages, s.scrollOffset, false, ""));
                         // 启动定时器，超时后清除提示
                         Thread.startVirtualThread(() -> {
@@ -805,22 +829,66 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
             }
 
             if (key.return_() && key.meta()) {
-                // Shift+Enter: 多行换行
-                setState(new TuiState(s.inputText + "\n", s.messages, 0, false, ""));
+                // Shift+Enter: 在光标位置插入换行
+                int pos = Math.min(inputCursorPos, s.inputText.length());
+                String newText = s.inputText.substring(0, pos) + "\n" + s.inputText.substring(pos);
+                inputCursorPos = pos + 1;
+                setState(new TuiState(newText, s.messages, 0, false, ""));
             } else if (key.tab() && !key.shift()) {
                 // Tab: 命令自动补全
                 handleTabCompletion(s);
             } else if (key.return_()) {
                 // Enter: 发送
                 if (!s.inputText.isEmpty()) {
+                    inputCursorPos = 0;
                     submitInput(s.inputText, s);
                 }
             } else if (key.backspace()) {
-                if (!s.inputText.isEmpty()) {
+                int pos = Math.min(inputCursorPos, s.inputText.length());
+                if (pos > 0) {
                     abandonHistoryPreview();
-                    String newText = s.inputText.substring(0, s.inputText.length() - 1);
+                    String newText = s.inputText.substring(0, pos - 1) + s.inputText.substring(pos);
+                    inputCursorPos = pos - 1;
                     updateCommandSuggestions(newText);
                     setState(new TuiState(newText, s.messages, s.scrollOffset, false, ""));
+                }
+            } else if (key.delete()) {
+                // Delete: 删除光标处字符
+                int pos = Math.min(inputCursorPos, s.inputText.length());
+                if (pos < s.inputText.length()) {
+                    abandonHistoryPreview();
+                    String newText = s.inputText.substring(0, pos) + s.inputText.substring(pos + 1);
+                    updateCommandSuggestions(newText);
+                    setState(new TuiState(newText, s.messages, s.scrollOffset, false, ""));
+                }
+            } else if (key.leftArrow()) {
+                // ← 左移光标
+                if (inputCursorPos > 0) {
+                    inputCursorPos--;
+                    setState(new TuiState(s.inputText, s.messages, s.scrollOffset, s.thinking, s.thinkingText));
+                }
+            } else if (key.rightArrow()) {
+                // → 右移光标
+                if (inputCursorPos < s.inputText.length()) {
+                    inputCursorPos++;
+                    setState(new TuiState(s.inputText, s.messages, s.scrollOffset, s.thinking, s.thinkingText));
+                }
+            } else if (key.home() && !key.ctrl()) {
+                // Home: 光标移到行首
+                int pos = Math.min(inputCursorPos, s.inputText.length());
+                int lineStart = s.inputText.lastIndexOf('\n', pos - 1) + 1;
+                if (inputCursorPos != lineStart) {
+                    inputCursorPos = lineStart;
+                    setState(new TuiState(s.inputText, s.messages, s.scrollOffset, s.thinking, s.thinkingText));
+                }
+            } else if (key.end() && !key.ctrl()) {
+                // End: 光标移到行尾
+                int pos = Math.min(inputCursorPos, s.inputText.length());
+                int lineEnd = s.inputText.indexOf('\n', pos);
+                if (lineEnd < 0) lineEnd = s.inputText.length();
+                if (inputCursorPos != lineEnd) {
+                    inputCursorPos = lineEnd;
+                    setState(new TuiState(s.inputText, s.messages, s.scrollOffset, s.thinking, s.thinkingText));
                 }
             } else if (key.upArrow()) {
                 browseHistoryUp(s);
@@ -842,11 +910,15 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
                 scroll(s, -10);
             } else if (key.escape()) {
                 // Esc: 清空输入
+                inputCursorPos = 0;
                 updateCommandSuggestions("");
                 setState(new TuiState("", s.messages, s.scrollOffset, false, ""));
             } else if (!input.isEmpty() && isPrintableInput(input, key)) {
+                // 在光标位置插入文本
                 abandonHistoryPreview();
-                String newText = s.inputText + input;
+                int pos = Math.min(inputCursorPos, s.inputText.length());
+                String newText = s.inputText.substring(0, pos) + input + s.inputText.substring(pos);
+                inputCursorPos = pos + input.length();
                 updateCommandSuggestions(newText);
                 setState(new TuiState(newText, s.messages, s.scrollOffset, false, ""));
             }
@@ -859,7 +931,10 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
             if (agentRunning.get() || text == null || text.isEmpty()) return;
             TuiState s = getState();
             abandonHistoryPreview();
-            setState(new TuiState(s.inputText + text, s.messages, s.scrollOffset, false, ""));
+            int pos = Math.min(inputCursorPos, s.inputText.length());
+            String newText = s.inputText.substring(0, pos) + text + s.inputText.substring(pos);
+            inputCursorPos = pos + text.length();
+            setState(new TuiState(newText, s.messages, s.scrollOffset, false, ""));
         }
     }
 
@@ -1076,14 +1151,14 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
         }
 
         if (suggestions.size() == 1) {
-            // 唯一匹配 → 直接补全 + 空格（准备输入参数）
             String completed = "/" + suggestions.getFirst();
+            inputCursorPos = completed.length();
             updateCommandSuggestions(completed);
             setState(new TuiState(completed, s.messages, s.scrollOffset, false, ""));
         } else {
-            // 多个匹配 → 循环选择
             tabCompletionIndex = (tabCompletionIndex + 1) % suggestions.size();
             String completed = "/" + suggestions.get(tabCompletionIndex);
+            inputCursorPos = completed.length();
             setState(new TuiState(completed, s.messages, s.scrollOffset, false, ""));
         }
     }
@@ -1383,7 +1458,9 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
         } else if (historyIndex > 0) {
             historyIndex--;
         }
-        setState(new TuiState(inputHistory.get(historyIndex), s.messages, s.scrollOffset, false, ""));
+        String historyText = inputHistory.get(historyIndex);
+        inputCursorPos = historyText.length();
+        setState(new TuiState(historyText, s.messages, s.scrollOffset, false, ""));
     }
 
     private void browseHistoryDown(TuiState s) {
@@ -1391,11 +1468,14 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
         historyIndex++;
         if (historyIndex >= inputHistory.size()) {
             historyIndex = -1;
+            inputCursorPos = savedInput.length();
             setState(new TuiState(savedInput, s.messages, s.scrollOffset, false, ""));
             savedInput = "";
             return;
         }
-        setState(new TuiState(inputHistory.get(historyIndex), s.messages, s.scrollOffset, false, ""));
+        String historyText = inputHistory.get(historyIndex);
+        inputCursorPos = historyText.length();
+        setState(new TuiState(historyText, s.messages, s.scrollOffset, false, ""));
     }
 
     private void abandonHistoryPreview() {
