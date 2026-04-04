@@ -95,6 +95,7 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
 
     /** 最近一次渲染的总行数（用于滚动限制） */
     private volatile int lastRenderedItemCount = 0;
+    private volatile int lastMaxVisibleLines = 20;
 
     /** 首次用户输入回调（用于 conversation summary） */
     private Consumer<String> onFirstUserInput;
@@ -287,8 +288,9 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
             ));
         }
 
-        // 记录总行数（供 scroll() 使用）
+        // 记录总行数和可见行数（供 scroll() 使用）
         lastRenderedItemCount = allItems.size();
+        lastMaxVisibleLines = maxLines;
 
         // 虚拟滚动
         List<Renderable> visibleItems;
@@ -992,7 +994,9 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
 
     private void scroll(TuiState s, int delta) {
         int totalItems = lastRenderedItemCount;
-        int maxOffset = Math.max(0, totalItems - 1);
+        int visibleLines = lastMaxVisibleLines;
+        // 最大偏移 = 超出可见范围的行数
+        int maxOffset = Math.max(0, totalItems - visibleLines);
         int newOffset = Math.max(0, Math.min(s.scrollOffset + delta, maxOffset));
         setState(new TuiState(s.inputText, s.messages, newOffset, s.thinking, s.thinkingText));
     }
