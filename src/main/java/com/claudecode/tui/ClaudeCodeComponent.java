@@ -604,7 +604,9 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
             Consumer<String> cb = permissionCallback;
             permissionCallback = null;
             setState(new TuiState("", s.messages, 0, false, ""));
-            if (cb != null) cb.accept(answer);
+            if (cb != null) {
+                Thread.startVirtualThread(() -> cb.accept(answer));
+            }
         } else if (key.backspace() && !s.inputText.isEmpty()) {
             setState(new TuiState(s.inputText.substring(0, s.inputText.length() - 1),
                     s.messages, s.scrollOffset, false, ""));
@@ -669,7 +671,7 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
         }
     }
 
-    /** 确认 AskUser 选择并回调 */
+    /** 确认 AskUser 选择并回调（调用方已持有 stateLock） */
     private void confirmAskUser(String answer) {
         Consumer<String> cb = permissionCallback;
         permissionCallback = null;
@@ -677,11 +679,12 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
         askQuestion = null;
         askInputMode = false;
         askSelectedIndex = 0;
-        synchronized (stateLock) {
-            TuiState s = getState();
-            setState(new TuiState("", s.messages, 0, false, ""));
+        TuiState s = getState();
+        setState(new TuiState("", s.messages, 0, false, ""));
+        // 回调在锁外执行（cb.accept 可能阻塞或触发其他状态变更）
+        if (cb != null) {
+            Thread.startVirtualThread(() -> cb.accept(answer));
         }
-        if (cb != null) cb.accept(answer);
     }
 
     /** 处理滚动输入 */
