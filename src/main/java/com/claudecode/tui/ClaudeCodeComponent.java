@@ -111,6 +111,12 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
     private volatile List<String> commandSuggestions = List.of(); // 当前匹配的命令名列表
     private volatile int tabCompletionIndex = -1;                  // 当前 Tab 循环索引，-1 表示未开始
 
+    /** Ctrl+R 反向历史搜索状态 */
+    private volatile boolean historySearchMode = false;    // 是否在搜索模式
+    private volatile String historySearchQuery = "";       // 搜索关键词
+    private volatile String historySearchResult = "";      // 当前匹配结果
+    private volatile int historySearchIndex = -1;          // 匹配到的历史记录索引
+
     /** 首次用户输入回调（用于 conversation summary） */
     private Consumer<String> onFirstUserInput;
 
@@ -185,6 +191,12 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
             // 权限选择模式：光标在选中选项的 ❯ 位置
             int permCursorRow = h - 2 - (snapPermOptions.size() - snapPermSelected);
             setCursorPosition(Math.max(0, permCursorRow), 3);
+        } else if (historySearchMode) {
+            // 搜索模式：光标在搜索词 █ 的位置
+            // "(reverse-i-search)`" = 20 chars, then query, then "█"
+            int cursorRow = Math.max(0, h - 3);
+            int cursorCol = 1 + 20 + StringWidth.width(historySearchQuery);
+            setCursorPosition(cursorRow, cursorCol);
         } else {
             // 正常模式：光标隐藏在块光标 █ 的位置
             int cursorRow = Math.max(0, h - 3);
@@ -511,6 +523,20 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
             return renderPermissionSelectArea(s, w);
         }
 
+        // Ctrl+R 历史搜索模式
+        if (historySearchMode) {
+            String query = historySearchQuery;
+            String result = historySearchResult;
+            Text searchPrompt = Text.of(
+                    Text.of("(reverse-i-search)`").color(Color.BRIGHT_CYAN),
+                    Text.of(query).color(Color.BRIGHT_YELLOW),
+                    Text.of("█").color(Color.BRIGHT_WHITE),
+                    Text.of("': ").color(Color.BRIGHT_CYAN),
+                    Text.of(result.isEmpty() ? "" : result).color(Color.WHITE)
+            );
+            return Box.of(searchPrompt).paddingX(1);
+        }
+
         Text prompt = Text.of("❯ ").color(Color.BRIGHT_GREEN).bold();
         Text content;
 
@@ -621,6 +647,8 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
         Renderable leftText;
         if (ctrlCPending) {
             leftText = Text.of("Press Ctrl-C again to exit").color(Color.BRIGHT_YELLOW);
+        } else if (historySearchMode) {
+            leftText = Text.of("Ctrl+R next · Enter select · Esc cancel").dimmed();
         } else if (agentRunning.get()) {
             leftText = Text.of("esc to interrupt").dimmed();
         } else {
@@ -722,6 +750,22 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
                 } else {
                     handleTextInput(input, key, s);
                 }
+                return;
+            }
+
+            // Ctrl+R: 进入历史搜索模式
+            if (key.ctrl() && "r".equals(input) && !agentRunning.get()) {
+                historySearchMode = true;
+                historySearchQuery = "";
+                historySearchResult = "";
+                historySearchIndex = -1;
+                setState(new TuiState("", s.messages, s.scrollOffset, false, ""));
+                return;
+            }
+
+            // 历史搜索模式的输入处理
+            if (historySearchMode) {
+                handleHistorySearchInput(input, key, s);
                 return;
             }
 
@@ -944,6 +988,56 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
         else if (key.ctrl() && key.end()) scrollToBottom(s);
         else if (key.pageUp()) scroll(s, 10);
         else if (key.pageDown()) scroll(s, -10);
+    }
+
+    /** Ctrl+R 反向历史搜索输入处理 */
+    private void handleHistorySearchInput(String input, Key key, TuiState s) {
+        if (key.escape() || (key.ctrl() && "c".equals(input))) {
+            // Esc/Ctrl+C: 退出搜索，恢复原输入
+            historySearchMode = false;
+            setState(new TuiState(s.inputText, s.messages, s.scrollOffset, false, ""));
+        } else if (key.return_()) {
+            // Enter: 选定搜索结果，放入输入框
+            String result = historySearchResult;
+            historySearchMode = false;
+            setState(new TuiState(result, s.messages, s.scrollOffset, false, ""));
+        } else if (key.ctrl() && "r".equals(input)) {
+            // 再次 Ctrl+R: 搜索下一个匹配（更旧的）
+            searchHistoryBackward(historySearchQuery, historySearchIndex - 1);
+            setState(new TuiState(s.inputText, s.messages, s.scrollOffset, false, ""));
+        } else if (key.backspace()) {
+            // 退格: 缩短搜索词
+            if (!historySearchQuery.isEmpty()) {
+                historySearchQuery = historySearchQuery.substring(0, historySearchQuery.length() - 1);
+                searchHistoryBackward(historySearchQuery, inputHistory.size() - 1);
+            }
+            setState(new TuiState(s.inputText, s.messages, s.scrollOffset, false, ""));
+        } else if (!input.isEmpty() && isPrintableInput(input, key)) {
+            // 输入字符: 追加到搜索词并搜索
+            historySearchQuery += input;
+            searchHistoryBackward(historySearchQuery, inputHistory.size() - 1);
+            setState(new TuiState(s.inputText, s.messages, s.scrollOffset, false, ""));
+        }
+    }
+
+    /** 从指定位置向前搜索历史记录 */
+    private void searchHistoryBackward(String query, int startIdx) {
+        if (query.isEmpty()) {
+            historySearchResult = "";
+            historySearchIndex = -1;
+            return;
+        }
+        String lowerQuery = query.toLowerCase();
+        for (int i = Math.min(startIdx, inputHistory.size() - 1); i >= 0; i--) {
+            if (inputHistory.get(i).toLowerCase().contains(lowerQuery)) {
+                historySearchResult = inputHistory.get(i);
+                historySearchIndex = i;
+                return;
+            }
+        }
+        // 没找到 — 保留之前的结果（或清空）
+        historySearchResult = "";
+        historySearchIndex = -1;
     }
 
     /** Tab 自动补全处理 */
