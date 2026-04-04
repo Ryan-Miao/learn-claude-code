@@ -85,6 +85,12 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
     /** 权限确认回调（由权限请求设置，用户输入后调用） */
     private volatile Consumer<String> permissionCallback;
 
+    /** AskUser 交互模式状态 */
+    private volatile List<String> askOptions;       // 可选项列表
+    private volatile int askSelectedIndex = 0;      // 当前选中索引
+    private volatile boolean askInputMode = false;  // 是否在自由输入模式（选择"其他"后）
+    private volatile String askQuestion;            // 当前问题文本
+
     /** 首次用户输入回调（用于 conversation summary） */
     private Consumer<String> onFirstUserInput;
 
@@ -119,16 +125,29 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
         // 计算输入区行数
         int inputLineCount = 1;
         String lastLine = s.inputText;
-        if (!s.inputText.isEmpty()) {
+        if (askOptions != null && !askOptions.isEmpty() && permissionCallback != null) {
+            // AskUser 模式：选项数 + 提示行
+            inputLineCount = askOptions.size() + 1;
+        } else if (!s.inputText.isEmpty()) {
             String[] inputLines = s.inputText.split("\n", -1);
             inputLineCount = inputLines.length;
             lastLine = inputLines[inputLines.length - 1];
         }
 
-        // 光标定位：底部结构 shortcutBar(1) + separator(1) + input(N) + separator(1) + statusBar(1)
-        int cursorRow = h - 3;
-        int cursorCol = 1 + PROMPT_WIDTH + StringWidth.width(lastLine);
-        setCursorPosition(cursorRow, cursorCol);
+        // 光标定位
+        if (askOptions != null && !askOptions.isEmpty() && permissionCallback != null) {
+            // AskUser 模式：隐藏光标（选项列表模式不需要）
+            if (askInputMode) {
+                int askCursorRow = h - 2 - (askOptions.size() - askSelectedIndex);
+                setCursorPosition(askCursorRow, 7 + StringWidth.width(s.inputText));
+            } else {
+                setCursorPosition(h - 2 - (askOptions.size() - askSelectedIndex), 6);
+            }
+        } else {
+            int cursorRow = h - 3;
+            int cursorCol = 1 + PROMPT_WIDTH + StringWidth.width(lastLine);
+            setCursorPosition(cursorRow, cursorCol);
+        }
 
         int headerHeight = 8; // 6 content rows + 2 border lines
         int bottomHeight = 4 + inputLineCount;
@@ -401,6 +420,11 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
 
     /** 输入区 */
     private Renderable inputArea(TuiState s, int w) {
+        // AskUser 交互模式 — 显示选项列表
+        if (permissionCallback != null && askOptions != null && !askOptions.isEmpty()) {
+            return renderAskUserArea(s, w);
+        }
+
         Text prompt = Text.of("❯ ").color(Color.BRIGHT_GREEN).bold();
         Text content;
 
@@ -426,6 +450,38 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
         return Box.of(
                 Text.of(prompt, content)
         ).paddingX(1);
+    }
+
+    /** 渲染 AskUser 选项列表 */
+    private Renderable renderAskUserArea(TuiState s, int w) {
+        List<Renderable> lines = new ArrayList<>();
+
+        for (int i = 0; i < askOptions.size(); i++) {
+            boolean selected = (i == askSelectedIndex);
+            String option = askOptions.get(i);
+
+            if (selected && askInputMode) {
+                // 自由输入模式
+                lines.add(Text.of(
+                        Text.of("  ❯ " + (i + 1) + ". ").color(Color.BRIGHT_CYAN),
+                        Text.of(s.inputText + "█").color(Color.BRIGHT_CYAN)
+                ));
+            } else {
+                String prefix = selected ? "  ❯ " : "    ";
+                lines.add(Text.of(prefix + (i + 1) + ". " + option)
+                        .color(selected ? Color.BRIGHT_CYAN : null));
+            }
+        }
+
+        // 提示行
+        String hint = askInputMode
+                ? "Type your answer · Enter confirm · Esc back"
+                : "↑↓ select · Enter confirm · 1-9 quick select · Esc cancel";
+        lines.add(Text.of("  " + hint).dimmed());
+
+        return Box.of(lines.toArray(new Renderable[0]))
+                .flexDirection(FlexDirection.COLUMN)
+                .paddingX(1);
     }
 
     /** 快捷键栏 */
@@ -477,9 +533,13 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
                 return;
             }
 
-            // 权限确认模式
+            // 权限确认模式 / AskUser 模式
             if (permissionCallback != null) {
-                handlePermissionInput(input, key, s);
+                if (askOptions != null && !askOptions.isEmpty()) {
+                    handleAskUserInput(input, key, s);
+                } else {
+                    handlePermissionInput(input, key, s);
+                }
                 return;
             }
 
@@ -549,6 +609,77 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
         } else if (!input.isEmpty() && isPrintableInput(input, key)) {
             setState(new TuiState(s.inputText + input, s.messages, s.scrollOffset, false, ""));
         }
+    }
+
+    /** 处理 AskUser 交互输入（带选项列表的选择模式） */
+    private void handleAskUserInput(String input, Key key, TuiState s) {
+        if (askInputMode) {
+            // 自由输入模式（选择了"其他"之后）
+            if (key.return_()) {
+                if (!s.inputText.isEmpty()) {
+                    confirmAskUser(s.inputText);
+                }
+            } else if (key.escape()) {
+                // 返回选择模式
+                askInputMode = false;
+                setState(new TuiState("", s.messages, s.scrollOffset, false, ""));
+            } else if (key.backspace() && !s.inputText.isEmpty()) {
+                setState(new TuiState(s.inputText.substring(0, s.inputText.length() - 1),
+                        s.messages, s.scrollOffset, false, ""));
+            } else if (!input.isEmpty() && isPrintableInput(input, key)) {
+                setState(new TuiState(s.inputText + input, s.messages, s.scrollOffset, false, ""));
+            }
+        } else {
+            // 列表选择模式
+            if (key.upArrow()) {
+                askSelectedIndex = askSelectedIndex == 0 ? askOptions.size() - 1 : askSelectedIndex - 1;
+                setState(new TuiState(s.inputText, s.messages, s.scrollOffset, s.thinking, s.thinkingText));
+            } else if (key.downArrow()) {
+                askSelectedIndex = (askSelectedIndex + 1) % askOptions.size();
+                setState(new TuiState(s.inputText, s.messages, s.scrollOffset, s.thinking, s.thinkingText));
+            } else if (key.return_()) {
+                String selected = askOptions.get(askSelectedIndex);
+                // 最后一个选项如果包含"其他"或"Other"，切换到输入模式
+                if (askSelectedIndex == askOptions.size() - 1 &&
+                        (selected.contains("其他") || selected.toLowerCase().contains("other"))) {
+                    askInputMode = true;
+                    setState(new TuiState("", s.messages, s.scrollOffset, false, ""));
+                } else {
+                    confirmAskUser(selected);
+                }
+            } else if (key.escape()) {
+                confirmAskUser("(cancelled)");
+            } else if (input.length() == 1 && Character.isDigit(input.charAt(0))) {
+                // 数字键快速选择
+                int idx = input.charAt(0) - '1';
+                if (idx >= 0 && idx < askOptions.size()) {
+                    askSelectedIndex = idx;
+                    String selected = askOptions.get(idx);
+                    if (idx == askOptions.size() - 1 &&
+                            (selected.contains("其他") || selected.toLowerCase().contains("other"))) {
+                        askInputMode = true;
+                        setState(new TuiState("", s.messages, s.scrollOffset, false, ""));
+                    } else {
+                        confirmAskUser(selected);
+                    }
+                }
+            }
+        }
+    }
+
+    /** 确认 AskUser 选择并回调 */
+    private void confirmAskUser(String answer) {
+        Consumer<String> cb = permissionCallback;
+        permissionCallback = null;
+        askOptions = null;
+        askQuestion = null;
+        askInputMode = false;
+        askSelectedIndex = 0;
+        synchronized (stateLock) {
+            TuiState s = getState();
+            setState(new TuiState("", s.messages, 0, false, ""));
+        }
+        if (cb != null) cb.accept(answer);
     }
 
     /** 处理滚动输入 */
@@ -733,7 +864,24 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
 
     /** 设置权限确认回调 */
     public void requestPermission(Consumer<String> callback) {
+        this.askOptions = null;
+        this.askInputMode = false;
+        this.askQuestion = null;
         this.permissionCallback = callback;
+    }
+
+    /** 设置 AskUser 交互模式（带可选列表） */
+    public void requestAskUser(String question, List<String> options, Consumer<String> callback) {
+        this.askQuestion = question;
+        this.askOptions = options;
+        this.askSelectedIndex = 0;
+        this.askInputMode = false;
+        this.permissionCallback = callback;
+        // 触发重绘
+        synchronized (stateLock) {
+            TuiState s = getState();
+            setState(new TuiState("", s.messages, s.scrollOffset, s.thinking, s.thinkingText));
+        }
     }
 
     /** 设置 thinking 状态 */

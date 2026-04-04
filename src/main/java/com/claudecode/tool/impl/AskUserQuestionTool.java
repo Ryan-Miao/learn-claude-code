@@ -24,6 +24,9 @@ public class AskUserQuestionTool implements Tool {
     /** ToolContext 中用于读取用户输入的回调 Key */
     public static final String USER_INPUT_CALLBACK = "ask_user_input_callback";
 
+    /** ToolContext 中用于结构化 AskUser 的回调 Key（question, options → answer） */
+    public static final String ASK_USER_STRUCTURED_CALLBACK = "ask_user_structured_callback";
+
     @Override
     public String name() {
         return "AskUserQuestion";
@@ -75,10 +78,31 @@ public class AskUserQuestionTool implements Tool {
             return "Error: question parameter is required";
         }
 
-        // 获取用户输入回调
+        // 解析选项
+        java.util.List<String> options = null;
+        if (input.containsKey("options")) {
+            options = (java.util.List<String>) input.get("options");
+        }
+
+        // 优先使用结构化回调（支持交互式选择）
+        Object structuredCb = context.get(ASK_USER_STRUCTURED_CALLBACK);
+        if (structuredCb instanceof java.util.function.BiFunction<?, ?, ?> biFn) {
+            try {
+                var askFn = (java.util.function.BiFunction<String, java.util.List<String>, String>) biFn;
+                String userResponse = askFn.apply(question, options);
+                if (userResponse == null || userResponse.isBlank()) {
+                    return "(User provided no response)";
+                }
+                return "User response: " + userResponse;
+            } catch (Exception e) {
+                log.debug("Structured callback failed, falling back", e);
+            }
+        }
+
+        // 回退到简单文本回调
         Object callback = context.get(USER_INPUT_CALLBACK);
         if (callback == null) {
-            log.warn("User input callback not registered (USER_INPUT_CALLBACK), returning default response");
+            log.warn("User input callback not registered, returning default response");
             return "Error: User input not available in current environment";
         }
 
@@ -95,27 +119,19 @@ public class AskUserQuestionTool implements Tool {
             prompt.append("  ").append("─".repeat(50)).append("\n");
             prompt.append("  ").append(question).append("\n");
 
-            // 如果有选项
-            if (input.containsKey("options")) {
-                var options = (java.util.List<String>) input.get("options");
-                if (options != null && !options.isEmpty()) {
-                    prompt.append("\n  Options:\n");
-                    for (int i = 0; i < options.size(); i++) {
-                        prompt.append("    ").append(i + 1).append(". ").append(options.get(i)).append("\n");
-                    }
+            if (options != null && !options.isEmpty()) {
+                prompt.append("\n  Options:\n");
+                for (int i = 0; i < options.size(); i++) {
+                    prompt.append("    ").append(i + 1).append(". ").append(options.get(i)).append("\n");
                 }
             }
 
             prompt.append("  ").append("─".repeat(50)).append("\n");
 
-            // 调用回调获取用户输入
             String userResponse = askUser.apply(prompt.toString());
-
             if (userResponse == null || userResponse.isBlank()) {
                 return "(User provided no response)";
             }
-
-            log.debug("User response: {}", userResponse);
             return "User response: " + userResponse;
 
         } catch (Exception e) {

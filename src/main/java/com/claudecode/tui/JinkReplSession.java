@@ -151,8 +151,12 @@ public class JinkReplSession {
     private void setupToolContextCallbacks() {
         var toolContext = agentLoop.getToolContext();
         if (toolContext != null) {
+            // 简单文本回调（兜底）
             toolContext.set(AskUserQuestionTool.USER_INPUT_CALLBACK,
                     (Function<String, String>) this::askUserInTui);
+            // 结构化回调（支持交互式选择）
+            toolContext.set(AskUserQuestionTool.ASK_USER_STRUCTURED_CALLBACK,
+                    (java.util.function.BiFunction<String, java.util.List<String>, String>) this::askUserStructured);
         }
     }
 
@@ -213,13 +217,37 @@ public class JinkReplSession {
         }
     }
 
-    /** 在 TUI 中请求用户输入（AskUser 工具） */
+    /** 在 TUI 中请求用户输入（AskUser 工具 — 简单文本模式） */
     private String askUserInTui(String prompt) {
         finishCurrentStreaming();
         component.addMessage(new SystemMsg(prompt, Color.BRIGHT_CYAN));
 
         CompletableFuture<String> future = new CompletableFuture<>();
         component.requestPermission(future::complete);
+
+        try {
+            return future.get();
+        } catch (Exception e) {
+            return "(User cancelled)";
+        }
+    }
+
+    /** 在 TUI 中请求用户输入（结构化模式 — 支持交互式选择） */
+    private String askUserStructured(String question, java.util.List<String> options) {
+        finishCurrentStreaming();
+
+        // 添加问题到消息列表
+        component.addMessage(new SystemMsg("🤔 " + question, Color.BRIGHT_CYAN));
+
+        CompletableFuture<String> future = new CompletableFuture<>();
+
+        if (options != null && !options.isEmpty()) {
+            // 有选项 — 使用交互式选择
+            component.requestAskUser(question, options, future::complete);
+        } else {
+            // 无选项 — 使用普通输入
+            component.requestPermission(future::complete);
+        }
 
         try {
             return future.get();
