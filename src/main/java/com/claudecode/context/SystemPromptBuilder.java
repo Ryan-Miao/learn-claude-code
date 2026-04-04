@@ -1,5 +1,7 @@
 package com.claudecode.context;
 
+import com.claudecode.tool.impl.BashTool;
+
 /**
  * 系统提示词构建器 —— 对应 claude-code/src/prompts.ts。
  * <p>
@@ -66,8 +68,8 @@ public class SystemPromptBuilder {
         sb.append("- Working directory: ").append(workDir).append("\n");
         sb.append("- OS: ").append(osName).append("\n");
         sb.append("- User: ").append(userName).append("\n");
-        sb.append("- Shell: ").append(System.getenv().getOrDefault("SHELL",
-                System.getenv().getOrDefault("COMSPEC", "unknown"))).append("\n");
+        // 使用 BashTool 检测到的 shell 信息（比 COMSPEC/SHELL 环境变量更准确）
+        sb.append(BashTool.getShellHint());
         sb.append("\n");
 
         // 行为准则

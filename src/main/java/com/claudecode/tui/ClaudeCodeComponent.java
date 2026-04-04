@@ -6,6 +6,7 @@ import com.claudecode.console.BannerPrinter;
 import com.claudecode.core.AgentLoop;
 import com.claudecode.core.TokenTracker;
 import com.claudecode.tool.ToolRegistry;
+import com.claudecode.tool.impl.BashTool;
 import com.claudecode.tui.UIMessage.*;
 import io.mybatis.jink.component.*;
 import io.mybatis.jink.input.Key;
@@ -91,6 +92,9 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
     private volatile int askSelectedIndex = 0;      // 当前选中索引
     private volatile boolean askInputMode = false;  // 是否在自由输入模式（选择"其他"后）
     private volatile String askQuestion;            // 当前问题文本
+
+    /** 最近一次渲染的总行数（用于滚动限制） */
+    private volatile int lastRenderedItemCount = 0;
 
     /** 首次用户输入回调（用于 conversation summary） */
     private Consumer<String> onFirstUserInput;
@@ -226,8 +230,8 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
                 Text.of(
                         Text.of("Tools: ").dimmed(),
                         Text.of(String.valueOf(toolCount)).color(Color.BRIGHT_CYAN),
-                        Text.of(" │ Commands: ").dimmed(),
-                        Text.of(String.valueOf(cmdCount)).color(Color.BRIGHT_CYAN)
+                        Text.of(" │ Shell: ").dimmed(),
+                        Text.of(BashTool.getDetectedShellName()).color(Color.BRIGHT_CYAN)
                 )
         };
 
@@ -282,6 +286,9 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
                     Text.of("Thinking...").color(Color.BRIGHT_MAGENTA).italic()
             ));
         }
+
+        // 记录总行数（供 scroll() 使用）
+        lastRenderedItemCount = allItems.size();
 
         // 虚拟滚动
         List<Renderable> visibleItems;
@@ -984,8 +991,8 @@ public class ClaudeCodeComponent extends Component<ClaudeCodeComponent.TuiState>
     // ==================== 滚动 ====================
 
     private void scroll(TuiState s, int delta) {
-        int totalMessages = s.messages.size() + 1; // +1 for initial system msg
-        int maxOffset = Math.max(0, totalMessages - 1);
+        int totalItems = lastRenderedItemCount;
+        int maxOffset = Math.max(0, totalItems - 1);
         int newOffset = Math.max(0, Math.min(s.scrollOffset + delta, maxOffset));
         setState(new TuiState(s.inputText, s.messages, newOffset, s.thinking, s.thinkingText));
     }
