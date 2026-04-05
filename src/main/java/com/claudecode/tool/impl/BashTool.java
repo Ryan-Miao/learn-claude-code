@@ -9,6 +9,7 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.nio.file.Path;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -27,6 +28,35 @@ public class BashTool implements Tool {
 
     /** 默认超时（秒） */
     private static final int DEFAULT_TIMEOUT = 120;
+
+    /**
+     * 危险命令黑名单 —— 这些命令前缀需要特别警告。
+     * 对应 TS 版 shouldUseSandbox.ts 的 containsExcludedCommand。
+     * 注意：这不是安全边界，而是用户友好的提示机制。
+     */
+    private static final Set<String> DANGEROUS_COMMANDS = Set.of(
+            "rm -rf /", "rm -rf /*", "rm -rf ~",
+            "mkfs", "dd if=",
+            ":(){:|:&};:",  // fork bomb
+            "chmod -R 777 /",
+            "git push --force", "git push -f",
+            "git reset --hard",
+            "shutdown", "reboot", "halt",
+            "format c:", "del /f /s /q c:\\"
+    );
+
+    /**
+     * 需要用户确认的命令前缀 —— 风险较高但不是完全禁止的操作。
+     */
+    private static final Set<String> WARN_COMMAND_PREFIXES = Set.of(
+            "rm -rf", "rm -r",
+            "git push --force", "git push -f",
+            "git reset --hard",
+            "git rebase",
+            "drop database", "drop table",
+            "truncate table",
+            "sudo rm", "sudo dd"
+    );
 
     /** 检测到的 shell 类型 */
     public enum ShellType {
@@ -125,6 +155,24 @@ public class BashTool implements Tool {
                 ? ((Number) input.get("timeout")).intValue()
                 : DEFAULT_TIMEOUT;
         Path workDir = context.getWorkDir();
+
+        // Sandbox check: block absolutely dangerous commands
+        String cmdLower = command.toLowerCase().trim();
+        for (String dangerous : DANGEROUS_COMMANDS) {
+            if (cmdLower.equals(dangerous) || cmdLower.startsWith(dangerous)) {
+                return "⛔ BLOCKED: This command is potentially destructive and has been blocked.\n"
+                        + "Command: " + command + "\n"
+                        + "If you really need to run this, please ask the user to execute it manually.";
+            }
+        }
+
+        // Sandbox warning: flag risky commands
+        for (String prefix : WARN_COMMAND_PREFIXES) {
+            if (cmdLower.startsWith(prefix)) {
+                log.warn("⚠️ Risky command detected: {}", command);
+                break;
+            }
+        }
 
         try {
             ProcessBuilder pb = buildProcess(command);

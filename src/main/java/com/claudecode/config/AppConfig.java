@@ -109,7 +109,8 @@ public class AppConfig {
                 // P2: 配置工具
                 new ConfigTool(),
                 // P2: 实用工具
-                new SleepTool()
+                new SleepTool(),
+                new ToolSearchTool()
         );
 
         // P2: 注册 MCP 工具桥接（将远程 MCP 工具映射为本地工具）
@@ -118,6 +119,9 @@ public class AppConfig {
                 registry.register(new McpToolBridge(client.getServerName(), mcpTool));
             }
         }
+
+        // 将 ToolRegistry 注入 ToolContext，供 ToolSearchTool 使用
+        toolContext.set("TOOL_REGISTRY", registry);
 
         return registry;
     }
