@@ -200,6 +200,13 @@ public class AppConfig {
                 new FeedbackCommand(),
                 new ReleaseNotesCommand(),
                 new KeybindingsCommand(),
+                // Phase 4D 调试命令
+                new DebugCommand(),
+                new HeapdumpCommand(),
+                new TraceCommand(),
+                new ContextVizCommand(),
+                new ResetLimitsCommand(),
+                new SandboxCommand(),
                 // Exit 放最后
                 new ExitCommand()
         );
