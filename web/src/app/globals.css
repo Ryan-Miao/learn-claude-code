@@ -794,13 +794,16 @@ body {
 .nm-count { color: oklch(35% 0.01 260); }
 .nm-header-grid {
   display: grid;
-  grid-template-columns: 150px 1fr;
+  grid-template-columns: 130px 1fr;
   gap: 1px 0;
   font-size: 11px;
   line-height: 2;
 }
-.nm-header-key { color: #f59e0b; padding: 0 8px; }
-.nm-header-val { color: oklch(62% 0.012 260); padding: 0 8px; }
+.nm-header-row {
+  display: contents;
+}
+.nm-header-key { color: #f59e0b; padding: 0 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nm-header-val { color: oklch(62% 0.012 260); padding: 0 8px; word-break: break-all; overflow-wrap: break-word; }
 .nm-header-sensitive {
   color: #ef4444;
   background: oklch(22% 0.035 25);
@@ -808,6 +811,8 @@ body {
   border-radius: 3px;
   font-size: 10px;
   border: 1px solid oklch(28% 0.025 25);
+  word-break: break-all;
+  overflow-wrap: break-word;
 }
 .nm-divider {
   margin: 12px 0;
