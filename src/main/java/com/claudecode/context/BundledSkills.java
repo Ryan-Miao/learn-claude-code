@@ -2,7 +2,6 @@ package com.claudecode.context;
 
 import com.claudecode.context.SkillLoader.Skill;
 
-import java.nio.file.Path;
 import java.util.List;
 
 /**
@@ -70,7 +69,7 @@ public final class BundledSkills {
                 If a check fails, analyze the error and suggest a fix.
                 """,
                 "bundled",
-                Path.of("bundled://verify")
+                null  // bundled skills have no filesystem path
         );
     }
 
@@ -119,7 +118,7 @@ public final class BundledSkills {
                 If the user describes unexpected behavior, start from Step 2.
                 """,
                 "bundled",
-                Path.of("bundled://debug")
+                null
         );
     }
 
@@ -157,7 +156,7 @@ public final class BundledSkills {
                 4. Summarize findings
                 """,
                 "bundled",
-                Path.of("bundled://review")
+                null
         );
     }
 
@@ -194,7 +193,7 @@ public final class BundledSkills {
                 6. Report the commit hash
                 """,
                 "bundled",
-                Path.of("bundled://commit")
+                null
         );
     }
 }
