@@ -234,6 +234,8 @@ TODO.md
 
 # Spring Boot local config (contains sensitive API keys)
 src/main/resources/application-local.yml
+claude-learn/src/main/resources/application-local.yml
+application-local.yml
 
 # Gradle
 .gradle/
