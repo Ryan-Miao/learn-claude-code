@@ -71,11 +71,14 @@ public class HttpTrafficInterceptor implements ClientHttpRequestInterceptor {
 
     private List<CapturedHeader> captureHeaders(org.springframework.http.HttpHeaders headers) {
         List<CapturedHeader> result = new ArrayList<>();
-        for (Map.Entry<String, List<String>> entry : headers.entrySet()) {
-            for (String value : entry.getValue()) {
-                boolean sensitive = isSensitiveHeader(entry.getKey(), value);
-                String displayValue = sensitive ? maskValue(value) : value;
-                result.add(new CapturedHeader(entry.getKey(), displayValue, sensitive));
+        for (String name : headers.headerNames()) {
+            List<String> values = headers.get(name);
+            if (values != null) {
+                for (String value : values) {
+                    boolean sensitive = isSensitiveHeader(name, value);
+                    String displayValue = sensitive ? maskValue(value) : value;
+                    result.add(new CapturedHeader(name, displayValue, sensitive));
+                }
             }
         }
         return result;
@@ -144,7 +147,7 @@ public class HttpTrafficInterceptor implements ClientHttpRequestInterceptor {
         }
 
         @Override
-        public org.springframework.http.HttpStatus getStatusCode() throws IOException {
+        public org.springframework.http.HttpStatusCode getStatusCode() throws IOException {
             return original.getStatusCode();
         }
 

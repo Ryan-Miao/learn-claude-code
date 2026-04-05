@@ -50,7 +50,7 @@ public class RestClientConfig {
      */
     private static class TrafficInterceptorBridge implements ClientHttpRequestInterceptor {
         @Override
-        public ClientHttpResponse intercept(org.springframework.http.HttpRequest request, byte[] body,
+        public org.springframework.http.client.ClientHttpResponse intercept(org.springframework.http.HttpRequest request, byte[] body,
                                             org.springframework.http.client.ClientHttpRequestExecution execution)
                 throws java.io.IOException {
             List<HttpTrafficInterceptor.HttpTraffic> trafficList = ACTIVE_TRAFFIC.get();
