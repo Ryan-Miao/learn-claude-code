@@ -53,6 +53,9 @@ public class ChatController {
         // Capture API round-trips during this request
         List<HttpCaptureAdvisor.ApiRoundTrip> capturedRounds = new ArrayList<>();
 
+        // Capture real HTTP traffic during this request
+        List<HttpTrafficInterceptor.HttpTraffic> httpTraffic = RestClientConfig.createTrafficList();
+
         try {
             // Build ChatClient with captured tool callbacks and HTTP capture advisor
             ChatClient chatClient = ChatClient.builder(aiConfig.get())
@@ -128,12 +131,37 @@ public class ChatController {
                                                     .toList()
                                     )
                             ))
+                            .toList(),
+                    "httpTraffic", httpTraffic.stream()
+                            .map(t -> Map.<String, Object>of(
+                                    "round", t.round(),
+                                    "url", t.url(),
+                                    "method", t.method(),
+                                    "statusCode", t.statusCode(),
+                                    "durationMs", t.durationMs(),
+                                    "requestHeaders", t.requestHeaders().stream()
+                                            .map(h -> Map.<String, Object>of(
+                                                    "name", h.name(),
+                                                    "value", h.value(),
+                                                    "sensitive", h.sensitive()))
+                                            .toList(),
+                                    "requestBody", t.requestBody(),
+                                    "responseHeaders", t.responseHeaders().stream()
+                                            .map(h -> Map.<String, Object>of(
+                                                    "name", h.name(),
+                                                    "value", h.value(),
+                                                    "sensitive", h.sensitive()))
+                                            .toList(),
+                                    "responseBody", t.responseBody()
+                            ))
                             .toList()
             ));
 
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(
                     Map.of("error", e.getMessage() != null ? e.getMessage() : "Unknown error"));
+        } finally {
+            RestClientConfig.clearTrafficList();
         }
     }
 
