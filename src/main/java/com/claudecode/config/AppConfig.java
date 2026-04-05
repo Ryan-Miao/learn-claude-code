@@ -104,8 +104,12 @@ public class AppConfig {
                 new TaskGetTool(),
                 new TaskListTool(),
                 new TaskUpdateTool(),
+                new TaskStopTool(),
+                new TaskOutputTool(),
                 // P2: 配置工具
-                new ConfigTool()
+                new ConfigTool(),
+                // P2: 实用工具
+                new SleepTool()
         );
 
         // P2: 注册 MCP 工具桥接（将远程 MCP 工具映射为本地工具）
