@@ -107,6 +107,9 @@ public class GrepTool implements Tool {
     @Override
     public String execute(Map<String, Object> input, ToolContext context) {
         String pattern = (String) input.get("pattern");
+        if (pattern == null || pattern.isBlank()) {
+            return "Error: 'pattern' parameter is required.";
+        }
         String searchPath = (String) input.getOrDefault("path", ".");
         String include = (String) input.getOrDefault("include", null);
         String type = (String) input.getOrDefault("type", null);
@@ -135,9 +138,11 @@ public class GrepTool implements Tool {
                 while ((line = reader.readLine()) != null && lines.size() < headLimit) {
                     lines.add(line);
                 }
+            } finally {
+                if (!process.waitFor(30, TimeUnit.SECONDS)) {
+                    process.destroyForcibly();
+                }
             }
-
-            process.waitFor(30, TimeUnit.SECONDS);
 
             if (lines.isEmpty()) {
                 return "No matches found for pattern: " + pattern;

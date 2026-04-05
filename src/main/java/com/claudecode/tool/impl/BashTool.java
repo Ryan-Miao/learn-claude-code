@@ -151,9 +151,17 @@ public class BashTool implements Tool {
     @Override
     public String execute(Map<String, Object> input, ToolContext context) {
         String command = (String) input.get("command");
-        int timeout = input.containsKey("timeout")
-                ? ((Number) input.get("timeout")).intValue()
-                : DEFAULT_TIMEOUT;
+        if (command == null || command.isBlank()) {
+            return "Error: 'command' parameter is required and must not be empty.";
+        }
+        int timeout;
+        try {
+            timeout = input.containsKey("timeout")
+                    ? ((Number) input.get("timeout")).intValue()
+                    : DEFAULT_TIMEOUT;
+        } catch (ClassCastException e) {
+            timeout = DEFAULT_TIMEOUT;
+        }
         Path workDir = context.getWorkDir();
 
         // Sandbox check: block absolutely dangerous commands
@@ -261,14 +269,17 @@ public class BashTool implements Tool {
 
     /** 检查命令是否可用 */
     private static boolean isCommandAvailable(String... cmd) {
+        Process p = null;
         try {
-            Process p = new ProcessBuilder(cmd)
+            p = new ProcessBuilder(cmd)
                     .redirectErrorStream(true)
                     .start();
             p.getInputStream().readAllBytes();
             return p.waitFor(5, TimeUnit.SECONDS) && p.exitValue() == 0;
         } catch (Exception e) {
             return false;
+        } finally {
+            if (p != null) p.destroyForcibly();
         }
     }
 

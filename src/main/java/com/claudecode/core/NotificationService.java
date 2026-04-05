@@ -116,16 +116,19 @@ public class NotificationService {
                 "$n.ShowBalloonTip(3000,'%s','%s','Info');" +
                 "Start-Sleep 1;$n.Dispose()",
                 escape(title), escape(message));
-        new ProcessBuilder("powershell", "-NoProfile", "-Command", ps)
+        Process p = new ProcessBuilder("powershell", "-NoProfile", "-Command", ps)
                 .redirectErrorStream(true).start();
+        // Don't block, but schedule cleanup
+        p.onExit().thenRun(p::destroyForcibly);
     }
 
     private void sendMac(String title, String message) throws IOException {
         String script = String.format(
                 "display notification \"%s\" with title \"%s\"",
                 escape(message), escape(title));
-        new ProcessBuilder("osascript", "-e", script)
+        Process p = new ProcessBuilder("osascript", "-e", script)
                 .redirectErrorStream(true).start();
+        p.onExit().thenRun(p::destroyForcibly);
     }
 
     private void sendLinux(String title, String message, String level) throws IOException {
@@ -134,8 +137,9 @@ public class NotificationService {
             case "warning" -> "normal";
             default -> "low";
         };
-        new ProcessBuilder("notify-send", "-u", urgency, title, message)
+        Process p = new ProcessBuilder("notify-send", "-u", urgency, title, message)
                 .redirectErrorStream(true).start();
+        p.onExit().thenRun(p::destroyForcibly);
     }
 
     private String escape(String s) {

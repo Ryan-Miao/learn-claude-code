@@ -68,7 +68,23 @@ public class FileEditTool implements Tool {
         String filePath = (String) input.get("file_path");
         String oldString = (String) input.get("old_string");
         String newString = (String) input.get("new_string");
+
+        if (filePath == null || filePath.isBlank()) {
+            return "Error: 'file_path' is required.";
+        }
+        if (oldString == null) {
+            return "Error: 'old_string' is required.";
+        }
+        if (newString == null) {
+            return "Error: 'new_string' is required.";
+        }
+
         Path path = context.getWorkDir().resolve(filePath).normalize();
+
+        // Path traversal protection
+        if (!path.startsWith(context.getWorkDir().normalize())) {
+            return "Error: Path traversal not allowed. Path must be within the working directory.";
+        }
 
         if (!Files.exists(path)) {
             return "Error: File not found: " + path;

@@ -73,7 +73,7 @@ public class AgentLoop {
     private volatile boolean cancelled = false;
 
     /** 消息历史 —— 自行管理，不依赖 Spring AI ChatMemory */
-    private final List<Message> messageHistory = new ArrayList<>();
+    private final List<Message> messageHistory = java.util.Collections.synchronizedList(new ArrayList<>());
 
     /** 工具调用事件回调：在每次工具调用前/后通知 UI */
     private Consumer<ToolEvent> onToolEvent;
@@ -371,7 +371,9 @@ public class AgentLoop {
             Map<String, Object> parsedArgs = Map.of();
             try {
                 parsedArgs = MAPPER.readValue(toolArgs, Map.class);
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                log.debug("Failed to parse tool arguments for {}: {}", toolName, e.getMessage());
+            }
 
             // PreToolUse Hook
             var preHookCtx = new HookManager.HookContext(toolName, parsedArgs);

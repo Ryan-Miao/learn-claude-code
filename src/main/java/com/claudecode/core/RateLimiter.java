@@ -62,6 +62,15 @@ public class RateLimiter {
      * @param maxConcurrent        最大并发执行数
      */
     public RateLimiter(int maxRequestsPerWindow, Duration windowDuration, int maxConcurrent) {
+        if (maxRequestsPerWindow <= 0) {
+            throw new IllegalArgumentException("maxRequestsPerWindow must be > 0, got: " + maxRequestsPerWindow);
+        }
+        if (windowDuration == null || windowDuration.isNegative() || windowDuration.isZero()) {
+            throw new IllegalArgumentException("windowDuration must be positive");
+        }
+        if (maxConcurrent <= 0) {
+            throw new IllegalArgumentException("maxConcurrent must be > 0, got: " + maxConcurrent);
+        }
         this.maxRequestsPerWindow = maxRequestsPerWindow;
         this.windowDuration = windowDuration;
         this.maxConcurrent = maxConcurrent;
