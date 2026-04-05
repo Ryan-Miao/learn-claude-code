@@ -36,11 +36,25 @@ public class AgentTool implements Tool {
     @Override
     public String description() {
         return """
-            Launch a sub-agent to handle a complex task independently. \
-            The sub-agent has its own conversation context but shares tools \
-            and environment. Use this for tasks that require focused attention \
-            or when you want to isolate a subtask. \
-            The sub-agent will execute the given prompt and return its final response.""";
+            Launch a sub-agent to handle a complex, multi-step task autonomously. \
+            The sub-agent has its own conversation context but shares tools and environment.
+
+            WHEN TO USE:
+            - Complex tasks requiring focused attention or multiple steps
+            - Parallelizing independent investigations (launch multiple agents)
+            - Protecting the main context from excessive tool output (search results, logs)
+            - Tasks that need isolated context (analyzing a separate module/file)
+
+            WHEN NOT TO USE:
+            - Simple, single-step operations (use the tool directly instead)
+            - Tasks where you need the result immediately in your context
+            - When you would just be delegating a single tool call
+
+            IMPORTANT:
+            - Provide complete, self-contained prompts — the agent has no conversation history.
+            - Do NOT duplicate work that a sub-agent is already doing.
+            - The agent will return a concise result; it cannot ask follow-up questions.
+            - For simple searches (finding a file, checking a function), use Grep/Glob directly.""";
     }
 
     @Override
@@ -98,12 +112,26 @@ public class AgentTool implements Tool {
     }
 
     /**
-     * 构建子 Agent 的完整提示词
+     * 构建子 Agent 的完整提示词。
+     * 参考 TS 版 DEFAULT_AGENT_PROMPT + enhanceSystemPromptWithEnvDetails。
      */
     private String buildSubAgentPrompt(String prompt, String additionalContext) {
         StringBuilder sb = new StringBuilder();
-        sb.append("You are a sub-agent tasked with a specific job. ");
-        sb.append("Complete the following task thoroughly and return your findings/results:\n\n");
+        sb.append("""
+                You are a sub-agent for a CLI coding assistant. Given the user's task, you should use \
+                the tools available to complete the task. Complete the task fully — don't gold-plate, \
+                but don't leave it half-done. When you complete the task, respond with a concise report \
+                covering what was done and any key findings — the caller will relay this to the user, \
+                so it only needs the essentials.
+
+                Notes:
+                - In your final response, share file paths (always absolute, never relative) that are \
+                relevant to the task. Include code snippets only when the exact text is load-bearing.
+                - Avoid using emojis in communication.
+                - Do not use a colon before tool calls.
+
+                """);
+
         sb.append("## Task\n");
         sb.append(prompt);
 
@@ -111,12 +139,6 @@ public class AgentTool implements Tool {
             sb.append("\n\n## Additional Context\n");
             sb.append(additionalContext);
         }
-
-        sb.append("\n\n## Instructions\n");
-        sb.append("- Focus only on the given task\n");
-        sb.append("- Use available tools as needed\n");
-        sb.append("- Provide a clear, concise result\n");
-        sb.append("- If the task cannot be completed, explain why\n");
 
         return sb.toString();
     }

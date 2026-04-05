@@ -35,7 +35,17 @@ public class TodoWriteTool implements Tool {
         return """
             Manage a todo list for tracking tasks during the conversation. \
             Supports operations: add, update, complete, delete, list. \
-            Use this to track multi-step tasks, record progress, and organize work.""";
+            Use this to track multi-step tasks, record progress, and organize work.
+
+            IMPORTANT: Use this tool proactively and often to track your progress. When working on \
+            a multi-step task:
+            - Create todos BEFORE starting work, breaking the task into clear steps.
+            - Keep at least one task in 'in_progress' status at all times while working.
+            - Mark tasks as 'done' as SOON as you complete each one — do not batch.
+            - Use 'blocked' status when a task cannot proceed and explain why.
+
+            Status flow: pending → in_progress → done (or blocked)
+            Priorities: high (do first), medium (default), low (do last)""";
     }
 
     @Override

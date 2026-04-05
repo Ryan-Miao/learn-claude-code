@@ -60,23 +60,43 @@ public class BashTool implements Tool {
 
     @Override
     public String description() {
+        // Base description varies by platform
+        String base;
         if (IS_WINDOWS && DETECTED_SHELL.displayName.equals("PowerShell")) {
-            return """
+            base = """
                 Execute a command in the working directory using PowerShell. \
                 Use PowerShell syntax (Get-ChildItem, Select-String, Get-Content, etc). \
                 Common equivalents: ls→Get-ChildItem, grep→Select-String, cat→Get-Content, \
-                rm→Remove-Item, cp→Copy-Item, mv→Move-Item, find→Get-ChildItem -Recurse. \
-                Commands run in a subprocess with timeout protection.""";
+                rm→Remove-Item, cp→Copy-Item, mv→Move-Item, find→Get-ChildItem -Recurse.""";
         } else if (IS_WINDOWS) {
-            return """
+            base = """
                 Execute a command in the working directory using cmd.exe. \
-                Use Windows cmd syntax (dir, type, find, etc). \
-                Commands run in a subprocess with timeout protection.""";
+                Use Windows cmd syntax (dir, type, find, etc).""";
+        } else {
+            base = """
+                Execute a bash command in the working directory. \
+                Use this for running scripts, installing packages, or system commands.""";
         }
-        return """
-            Execute a bash command in the working directory. \
-            Use this for file operations, running scripts, installing packages, \
-            or any system command. Commands run in a subprocess with timeout protection.""";
+
+        // Shared behavioral guidance (adapted from TS BashTool/prompt.ts)
+        return base + """
+
+                Commands run in a subprocess with timeout protection. \
+                Working directory persists between commands; shell state (variables, functions) does not.
+
+                IMPORTANT RULES:
+                - Do NOT use this tool when a dedicated tool exists. Use Read/Edit/Write for files, \
+                Glob for finding files, Grep for searching content. Only use Bash for commands that \
+                genuinely require shell execution (git, build tools, package managers, etc).
+                - Be careful with destructive commands (rm -rf, git reset --hard, etc). These warrant \
+                user confirmation.
+                - When running long commands, consider the timeout setting.
+                - For git operations: always use --no-pager to prevent interactive pagers that will hang. \
+                Check git status before committing. Write clear, concise commit messages. Do NOT amend \
+                commits or force-push without explicit user approval.
+                - Prefer simple, targeted commands over complex pipelines when possible.
+                - If a command fails, read the error carefully before retrying. Do not blindly retry \
+                the same command.""";
     }
 
     @Override

@@ -41,7 +41,18 @@ public class TaskUpdateTool implements Tool {
 
     @Override
     public String description() {
-        return "Update a task's status and optional result";
+        return """
+            Update a task's status and optional result.
+
+            Status workflow:
+             - PENDING → RUNNING: Set when you start working on a task.
+             - RUNNING → COMPLETED: Set when the task is fully done and verified.
+             - RUNNING → FAILED: Set when the task cannot be completed (include reason in result).
+             - RUNNING → CANCELLED: Set when the task is no longer needed.
+             - Tasks in terminal states (COMPLETED/FAILED/CANCELLED) cannot be updated further.
+
+            Always include a meaningful 'result' description when completing or failing a task \
+            so the user understands what was accomplished or what went wrong.""";
     }
 
     @Override

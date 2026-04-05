@@ -27,8 +27,16 @@ public class FileEditTool implements Tool {
     public String description() {
         return """
             Make a targeted edit to a file by replacing an exact string match with new content. \
-            The old_string must match exactly one location in the file. \
-            Use Read tool first to understand the file content before editing.""";
+            Performs exact string replacements — the old_string must match exactly one location in the file.
+
+            IMPORTANT RULES:
+            - You MUST use the Read tool at least once before editing a file. This tool will error \
+            if you haven't read the file first.
+            - When editing text from Read tool output, ensure you preserve the exact indentation \
+            (tabs/spaces) as it appears in the file.
+            - ALWAYS prefer editing existing files in the codebase over creating new files.
+            - NEVER write new files unless explicitly required by the task.
+            - If old_string matches multiple locations, be more specific by including more context.""";
     }
 
     @Override

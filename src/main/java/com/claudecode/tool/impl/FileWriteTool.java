@@ -26,8 +26,16 @@ public class FileWriteTool implements Tool {
     public String description() {
         return """
             Write content to a file. Creates the file and any parent directories if they don't exist. \
-            If the file exists, it will be overwritten. Use this for creating new files or completely \
-            replacing file content.""";
+            If the file exists, it will be overwritten.
+
+            IMPORTANT RULES:
+            - If this is an existing file, you MUST use the Read tool first to read the file's contents. \
+            Understand the existing content before overwriting.
+            - Prefer the Edit tool for modifying existing files — it only sends the diff and is safer. \
+            Only use Write to create new files or for complete rewrites.
+            - NEVER create documentation files (*.md) or README files unless explicitly requested by the user.
+            - Only use emojis in file content if the user explicitly requests it.
+            - Do not create files unless they're absolutely necessary for achieving your goal.""";
     }
 
     @Override

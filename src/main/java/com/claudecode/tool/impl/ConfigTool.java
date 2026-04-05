@@ -38,7 +38,19 @@ public class ConfigTool implements Tool {
 
     @Override
     public String description() {
-        return "Get or set configuration values";
+        return """
+            Get or set configuration values. Use when the user requests configuration changes, \
+            asks about current settings, or when adjusting a setting would benefit them.
+
+            Available settings include:
+             - language: Preferred response language (e.g., "zh-CN", "en")
+             - theme: Color theme (light/dark)
+             - model: AI model to use
+             - verbose: Enable verbose output (true/false)
+             - timeout: Default command timeout in seconds
+             - permissions: Permission mode (ask/auto/deny)
+
+            Use action 'get' to read a setting value, 'set' to change it.""";
     }
 
     @Override

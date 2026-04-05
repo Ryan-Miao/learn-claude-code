@@ -29,8 +29,18 @@ public class GrepTool implements Tool {
     @Override
     public String description() {
         return """
-            Search for a pattern in file contents using regex. Returns matching lines with \
-            file paths and line numbers. Uses ripgrep (rg) if available, falls back to grep.""";
+            A powerful search tool built on ripgrep. Searches for a regex pattern in file contents \
+            and returns matching lines with file paths and line numbers.
+
+            IMPORTANT: ALWAYS use this Grep tool for searching file content. NEVER invoke `grep`, \
+            `rg`, or `findstr` as a Bash command — using this dedicated tool allows the user to \
+            better understand and review your searches.
+
+            Uses ripgrep (rg) if available, falls back to system grep/findstr. Supports full regex \
+            syntax. Use the 'include' parameter to filter by file type (e.g., '*.java', '*.ts').
+
+            When you are doing an open-ended search that may require multiple rounds of searching, \
+            consider using the Agent tool instead to keep the main context clean.""";
     }
 
     @Override
