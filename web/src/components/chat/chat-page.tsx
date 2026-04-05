@@ -7,6 +7,7 @@ import {
   type AgentInfo,
   type ToolCall,
   type ApiRoundTrip,
+  type HttpTraffic,
 } from "@/lib/chat-runtime";
 import { AgentSelector } from "./agent-selector";
 import { MonitorPanel } from "./monitor-panel";
@@ -47,6 +48,7 @@ interface Message {
   toolCalls?: ToolCall[];
   error?: string;
   apiRoundTrips?: ApiRoundTrip[];
+  httpTraffic?: HttpTraffic[];
 }
 
 export function ChatPage() {
@@ -131,6 +133,10 @@ export function ChatPage() {
           apiRoundTrips:
             res.apiRoundTrips && res.apiRoundTrips.length > 0
               ? res.apiRoundTrips
+              : undefined,
+          httpTraffic:
+            res.httpTraffic && res.httpTraffic.length > 0
+              ? res.httpTraffic
               : undefined,
         },
       ]);
@@ -244,7 +250,7 @@ export function ChatPage() {
                     <span>Monitor ({msg.apiRoundTrips.length} rounds)</span>
                   </button>
                   {expandedMonitoring.has(i) && (
-                    <MonitorPanel roundTrips={msg.apiRoundTrips!} />
+                    <MonitorPanel roundTrips={msg.apiRoundTrips!} httpTraffic={msg.httpTraffic} />
                   )}
                 </div>
               )}
