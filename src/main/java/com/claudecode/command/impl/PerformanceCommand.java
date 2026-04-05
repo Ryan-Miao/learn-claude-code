@@ -2,14 +2,13 @@ package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
 import com.claudecode.command.CommandUtils;
-import com.claudecode.command.SlashCommand;
-import com.claudecode.console.AnsiStyle;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.telemetry.MetricsCollector;
 
 /**
  * /performance 命令 —— 性能统计。
  */
-public class PerformanceCommand implements SlashCommand {
+public class PerformanceCommand extends BaseSlashCommand {
 
     @Override
     public String name() { return "performance"; }
@@ -25,7 +24,7 @@ public class PerformanceCommand implements SlashCommand {
     @Override
     public String execute(String args, CommandContext context) {
         StringBuilder sb = new StringBuilder();
-        sb.append(CommandUtils.header("⚡", "Performance Statistics"));
+        sb.append(header("⚡", "Performance Statistics"));
 
         Runtime runtime = Runtime.getRuntime();
         long totalMem = runtime.totalMemory();
@@ -33,14 +32,14 @@ public class PerformanceCommand implements SlashCommand {
         long usedMem = totalMem - freeMem;
         long maxMem = runtime.maxMemory();
 
-        sb.append(CommandUtils.subtitle("Memory")).append("\n");
+        sb.append(subtitle("Memory")).append("\n");
         sb.append("  Used:      ").append(CommandUtils.formatBytes(usedMem)).append("\n");
         sb.append("  Allocated: ").append(CommandUtils.formatBytes(totalMem)).append("\n");
         sb.append("  Max:       ").append(CommandUtils.formatBytes(maxMem)).append("\n");
         sb.append("  Usage:     ").append(CommandUtils.progressBar((double) usedMem / maxMem, 20)).append("\n\n");
 
         int threadCount = Thread.activeCount();
-        sb.append(CommandUtils.subtitle("Threads")).append("\n");
+        sb.append(subtitle("Threads")).append("\n");
         sb.append("  Active:    ").append(threadCount).append("\n");
         sb.append("  Available: ").append(runtime.availableProcessors()).append(" CPUs\n\n");
 
@@ -50,14 +49,14 @@ public class PerformanceCommand implements SlashCommand {
             gcCount += gc.getCollectionCount();
             gcTime += gc.getCollectionTime();
         }
-        sb.append(CommandUtils.subtitle("GC")).append("\n");
+        sb.append(subtitle("GC")).append("\n");
         sb.append("  Collections: ").append(gcCount).append("\n");
         sb.append("  Total time:  ").append(CommandUtils.formatMillis(gcTime)).append("\n\n");
 
         if (context.agentLoop() != null) {
-            Object metricsObj = context.agentLoop().getToolContext().get("METRICS_COLLECTOR");
+            Object metricsObj = toolCtx(context).get("METRICS_COLLECTOR");
             if (metricsObj instanceof MetricsCollector metrics) {
-                sb.append(CommandUtils.subtitle("Session Metrics")).append("\n");
+                sb.append(subtitle("Session Metrics")).append("\n");
                 sb.append("  Duration:    ").append(CommandUtils.formatDuration(metrics.getSessionDurationSeconds())).append("\n");
                 var toolUsage = metrics.getToolUsage();
                 if (!toolUsage.isEmpty()) {

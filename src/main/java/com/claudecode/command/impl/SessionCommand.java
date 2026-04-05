@@ -1,7 +1,7 @@
 package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
-import com.claudecode.command.SlashCommand;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.console.AnsiStyle;
 
 import java.io.IOException;
@@ -24,7 +24,7 @@ import java.util.List;
  *   <li>/session export —— 导出会话为 JSON</li>
  * </ul>
  */
-public class SessionCommand implements SlashCommand {
+public class SessionCommand extends BaseSlashCommand {
 
     private static final DateTimeFormatter FMT =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
@@ -49,7 +49,7 @@ public class SessionCommand implements SlashCommand {
 
     @Override
     public String execute(String args, CommandContext context) {
-        args = args == null ? "" : args.strip();
+        args = args(args);
 
         if (args.startsWith("save")) {
             String sessionName = args.length() > 5 ? args.substring(5).strip() : "";

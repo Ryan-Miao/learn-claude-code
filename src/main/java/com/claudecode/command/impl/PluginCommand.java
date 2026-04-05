@@ -1,7 +1,7 @@
 package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
-import com.claudecode.command.CommandUtils;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.command.SlashCommand;
 import com.claudecode.console.AnsiStyle;
 import com.claudecode.plugin.*;
@@ -32,7 +32,7 @@ import java.util.Optional;
  * 通过 {@link com.claudecode.tool.ToolContext} 中 key 为
  * {@code "PLUGIN_MANAGER"} 的共享状态获取 {@link PluginManager} 实例。
  */
-public class PluginCommand implements SlashCommand {
+public class PluginCommand extends BaseSlashCommand {
 
     @Override
     public String name() {
@@ -56,7 +56,7 @@ public class PluginCommand implements SlashCommand {
             return AnsiStyle.red("  ✗ Plugin system not initialized");
         }
 
-        String trimmed = CommandUtils.parseArgs(args);
+        String trimmed = args(args);
 
         // 无参数：列出所有插件
         if (trimmed.isEmpty()) {
@@ -88,7 +88,7 @@ public class PluginCommand implements SlashCommand {
     private String listPlugins(PluginManager manager) {
         List<PluginInfo> plugins = manager.getPlugins();
         StringBuilder sb = new StringBuilder();
-        sb.append(CommandUtils.header("🔌", "Loaded Plugins"));
+        sb.append(header("🔌", "Loaded Plugins"));
 
         if (plugins.isEmpty()) {
             sb.append(AnsiStyle.dim("  No plugins loaded.")).append("\n");
@@ -173,7 +173,7 @@ public class PluginCommand implements SlashCommand {
 
         Plugin p = info.plugin();
         StringBuilder sb = new StringBuilder();
-        sb.append(CommandUtils.header("🔌", "Plugin Details"));
+        sb.append(header("🔌", "Plugin Details"));
 
         sb.append("  ").append(AnsiStyle.bold("Name:        ")).append(p.name()).append("\n");
         sb.append("  ").append(AnsiStyle.bold("ID:          ")).append(AnsiStyle.cyan(p.id())).append("\n");
@@ -360,7 +360,7 @@ public class PluginCommand implements SlashCommand {
 
     private PluginInstaller getInstaller(CommandContext context) {
         try {
-            Object obj = context.agentLoop().getToolContext().get("PLUGIN_INSTALLER");
+            Object obj = toolCtx(context).get("PLUGIN_INSTALLER");
             if (obj instanceof PluginInstaller pi) return pi;
         } catch (Exception ignored) {}
         return null;
@@ -368,7 +368,7 @@ public class PluginCommand implements SlashCommand {
 
     private MarketplaceManager getMarketplace(CommandContext context) {
         try {
-            Object obj = context.agentLoop().getToolContext().get("MARKETPLACE_MANAGER");
+            Object obj = toolCtx(context).get("MARKETPLACE_MANAGER");
             if (obj instanceof MarketplaceManager mm) return mm;
         } catch (Exception ignored) {}
         return null;
@@ -376,7 +376,7 @@ public class PluginCommand implements SlashCommand {
 
     private PluginAutoUpdate getAutoUpdate(CommandContext context) {
         try {
-            Object obj = context.agentLoop().getToolContext().get("PLUGIN_AUTO_UPDATE");
+            Object obj = toolCtx(context).get("PLUGIN_AUTO_UPDATE");
             if (obj instanceof PluginAutoUpdate pau) return pau;
         } catch (Exception ignored) {}
         return null;
@@ -391,11 +391,11 @@ public class PluginCommand implements SlashCommand {
      * @return PluginManager 实例，未找到时返回 null
      */
     private PluginManager getPluginManager(CommandContext context) {
-        if (context.agentLoop() == null) {
+        if (requireAgentLoop(context) == null) {
             return null;
         }
         try {
-            Object manager = context.agentLoop().getToolContext().get("PLUGIN_MANAGER");
+            Object manager = toolCtx(context).get("PLUGIN_MANAGER");
             if (manager instanceof PluginManager pm) {
                 return pm;
             }

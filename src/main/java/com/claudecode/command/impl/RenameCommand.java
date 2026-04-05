@@ -1,7 +1,7 @@
 package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
-import com.claudecode.command.SlashCommand;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.console.AnsiStyle;
 
 import java.util.List;
@@ -12,7 +12,7 @@ import java.util.List;
  * 对应 claude-code 的 /rename 命令，给当前会话设置一个友好名称。
  * 会话名称在 UI 标题栏和会话列表中显示。
  */
-public class RenameCommand implements SlashCommand {
+public class RenameCommand extends BaseSlashCommand {
 
     /** 当前会话名称（进程级别） */
     private static volatile String sessionName = null;
@@ -34,7 +34,7 @@ public class RenameCommand implements SlashCommand {
 
     @Override
     public String execute(String args, CommandContext context) {
-        args = args == null ? "" : args.strip();
+        args = args(args);
 
         if (args.isBlank()) {
             if (sessionName == null) {

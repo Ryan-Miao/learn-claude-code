@@ -2,7 +2,7 @@ package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
 import com.claudecode.command.CommandUtils;
-import com.claudecode.command.SlashCommand;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.console.AnsiStyle;
 import com.claudecode.core.TokenTracker;
 
@@ -12,7 +12,7 @@ import com.claudecode.core.TokenTracker;
  * 对应 claude-code/src/commands/cost.ts。
  * 从 AgentLoop 的 TokenTracker 获取真实 Token 统计。
  */
-public class CostCommand implements SlashCommand {
+public class CostCommand extends BaseSlashCommand {
 
     @Override
     public String name() {
@@ -30,7 +30,7 @@ public class CostCommand implements SlashCommand {
         int msgCount = context.agentLoop().getMessageHistory().size();
 
         StringBuilder sb = new StringBuilder();
-        sb.append(CommandUtils.header("💰", "Token Usage & Cost"));
+        sb.append(header("💰", "Token Usage & Cost"));
 
         sb.append("  ").append(AnsiStyle.bold("Model:        ")).append(AnsiStyle.cyan(tracker.getModelName())).append("\n");
         sb.append("  ").append(AnsiStyle.bold("API Calls:    ")).append(tracker.getApiCallCount()).append("\n");

@@ -1,7 +1,7 @@
 package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
-import com.claudecode.command.SlashCommand;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.console.AnsiStyle;
 
 import java.io.IOException;
@@ -15,7 +15,7 @@ import java.util.stream.Stream;
  * 对应 claude-code/src/commands/files.ts。
  * 显示项目目录树（默认2层深度）。
  */
-public class FilesCommand implements SlashCommand {
+public class FilesCommand extends BaseSlashCommand {
 
     @Override
     public String name() {

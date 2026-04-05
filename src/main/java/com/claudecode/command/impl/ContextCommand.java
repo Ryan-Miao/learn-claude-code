@@ -1,7 +1,7 @@
 package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
-import com.claudecode.command.SlashCommand;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.console.AnsiStyle;
 import com.claudecode.context.ClaudeMdLoader;
 import com.claudecode.context.GitContext;
@@ -14,7 +14,7 @@ import java.nio.file.Path;
  * <p>
  * 展示已加载的 CLAUDE.md、Skills、Git 上下文和 Token 预算使用情况。
  */
-public class ContextCommand implements SlashCommand {
+public class ContextCommand extends BaseSlashCommand {
 
     @Override
     public String name() {

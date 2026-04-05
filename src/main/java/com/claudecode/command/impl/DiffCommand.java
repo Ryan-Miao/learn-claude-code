@@ -1,7 +1,7 @@
 package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
-import com.claudecode.command.SlashCommand;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.console.AnsiStyle;
 
 import java.io.BufferedReader;
@@ -20,7 +20,7 @@ import java.util.concurrent.TimeUnit;
  *   <li>--stat：仅显示文件统计（不含详细diff）</li>
  * </ul>
  */
-public class DiffCommand implements SlashCommand {
+public class DiffCommand extends BaseSlashCommand {
 
     @Override
     public String name() {
@@ -39,7 +39,7 @@ public class DiffCommand implements SlashCommand {
             return AnsiStyle.yellow("  ⚠ Current directory is not a Git repository");
         }
 
-        args = args == null ? "" : args.strip();
+        args = args(args);
 
         try {
             String diffOutput;

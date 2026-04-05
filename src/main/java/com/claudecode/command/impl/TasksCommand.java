@@ -2,7 +2,7 @@ package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
 import com.claudecode.command.CommandUtils;
-import com.claudecode.command.SlashCommand;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.console.AnsiStyle;
 import com.claudecode.core.TaskManager;
 import com.claudecode.core.TaskManager.TaskInfo;
@@ -18,7 +18,7 @@ import java.util.List;
  * 对应 claude-code 中的任务管理 UI。
  * 显示所有任务的状态、创建时间和结果摘要。
  */
-public class TasksCommand implements SlashCommand {
+public class TasksCommand extends BaseSlashCommand {
 
     private final TaskManager taskManager;
 
@@ -39,7 +39,7 @@ public class TasksCommand implements SlashCommand {
     @Override
     public String execute(String args, CommandContext context) {
         List<TaskInfo> tasks;
-        String filter = CommandUtils.parseArgs(args);
+        String filter = args(args);
 
         // Optional status filter
         if (!filter.isEmpty()) {

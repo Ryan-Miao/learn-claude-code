@@ -1,7 +1,7 @@
 package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
-import com.claudecode.command.SlashCommand;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.console.AnsiStyle;
 import com.claudecode.core.TokenTracker;
 import com.claudecode.core.compact.AutoCompactManager;
@@ -23,7 +23,7 @@ import java.util.List;
  *   <li>/compact --aggressive —— 激进压缩（保留更少上下文）</li>
  * </ul>
  */
-public class CompactCommand implements SlashCommand {
+public class CompactCommand extends BaseSlashCommand {
 
     @Override
     public String name() {
@@ -37,11 +37,11 @@ public class CompactCommand implements SlashCommand {
 
     @Override
     public String execute(String args, CommandContext context) {
-        if (context.agentLoop() == null) {
+        if (requireAgentLoop(context) == null) {
             return AnsiStyle.yellow("  ⚠ No active conversation to compact.");
         }
 
-        String argStr = (args == null) ? "" : args.strip();
+        String argStr = args(args);
 
         // --stats: only show statistics
         if (argStr.equals("--stats") || argStr.equals("-s")) {

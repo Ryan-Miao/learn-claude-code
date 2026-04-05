@@ -1,7 +1,7 @@
 package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
-import com.claudecode.command.SlashCommand;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.console.AnsiStyle;
 
 import java.io.BufferedReader;
@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
  * <p>
  * 获取 diff 内容后，发送给 AI 模型进行代码审查。
  */
-public class ReviewCommand implements SlashCommand {
+public class ReviewCommand extends BaseSlashCommand {
 
     @Override
     public String name() {
@@ -42,7 +42,7 @@ public class ReviewCommand implements SlashCommand {
 
     @Override
     public String execute(String args, CommandContext context) {
-        if (context.agentLoop() == null) {
+        if (requireAgentLoop(context) == null) {
             return AnsiStyle.red("  ✗ AgentLoop unavailable, cannot perform code review.");
         }
 

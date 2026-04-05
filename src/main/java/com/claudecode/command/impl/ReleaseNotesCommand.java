@@ -2,7 +2,7 @@ package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
 import com.claudecode.command.CommandUtils;
-import com.claudecode.command.SlashCommand;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.console.AnsiStyle;
 
 import java.util.List;
@@ -10,7 +10,7 @@ import java.util.List;
 /**
  * /release-notes 命令 —— 显示版本更新日志。
  */
-public class ReleaseNotesCommand implements SlashCommand {
+public class ReleaseNotesCommand extends BaseSlashCommand {
 
     @Override
     public String name() { return "release-notes"; }
@@ -26,7 +26,7 @@ public class ReleaseNotesCommand implements SlashCommand {
     @Override
     public String execute(String args, CommandContext context) {
         StringBuilder sb = new StringBuilder();
-        sb.append(CommandUtils.header("📋", "Release Notes"));
+        sb.append(header("📋", "Release Notes"));
 
         sb.append(AnsiStyle.bold("  v0.4.0 — Phase 4: Commands, Tools & Services\n"));
         sb.append(CommandUtils.separator(45)).append("\n");

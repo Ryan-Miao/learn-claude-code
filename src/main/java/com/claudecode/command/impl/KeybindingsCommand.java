@@ -1,7 +1,7 @@
 package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
-import com.claudecode.command.SlashCommand;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.console.AnsiStyle;
 
 import java.util.List;
@@ -9,7 +9,7 @@ import java.util.List;
 /**
  * /keybindings 命令 —— 显示和配置快捷键。
  */
-public class KeybindingsCommand implements SlashCommand {
+public class KeybindingsCommand extends BaseSlashCommand {
 
     @Override
     public String name() { return "keybindings"; }

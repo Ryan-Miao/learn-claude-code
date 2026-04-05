@@ -1,7 +1,7 @@
 package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
-import com.claudecode.command.SlashCommand;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.console.AnsiStyle;
 
 import java.io.BufferedReader;
@@ -22,7 +22,7 @@ import java.util.concurrent.TimeUnit;
  *   <li>/commit --pr —— 提交 + push + 创建 PR（使用 gh CLI）</li>
  * </ul>
  */
-public class CommitCommand implements SlashCommand {
+public class CommitCommand extends BaseSlashCommand {
 
     @Override
     public String name() {
@@ -41,7 +41,7 @@ public class CommitCommand implements SlashCommand {
             return AnsiStyle.yellow("  ⚠ Current directory is not a Git repository");
         }
 
-        args = args == null ? "" : args.strip();
+        args = args(args);
 
         try {
             boolean addAll = args.contains("--all") || args.contains("-a");

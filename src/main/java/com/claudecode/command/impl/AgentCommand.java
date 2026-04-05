@@ -1,7 +1,7 @@
 package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
-import com.claudecode.command.SlashCommand;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.console.AnsiStyle;
 import com.claudecode.core.TaskManager;
 
@@ -20,7 +20,7 @@ import java.util.List;
  *   <li>/agent stop-all —— 停止所有 agent</li>
  * </ul>
  */
-public class AgentCommand implements SlashCommand {
+public class AgentCommand extends BaseSlashCommand {
 
     @Override
     public String name() {
@@ -39,7 +39,7 @@ public class AgentCommand implements SlashCommand {
 
     @Override
     public String execute(String args, CommandContext context) {
-        args = args == null ? "" : args.strip();
+        args = args(args);
 
         // Get TaskManager from AgentLoop's tool context
         TaskManager taskManager = getTaskManager(context);
@@ -183,8 +183,8 @@ public class AgentCommand implements SlashCommand {
     private TaskManager getTaskManager(CommandContext context) {
         // The TaskManager is typically accessible from the tool context
         // via AgentLoop's tool context. Try to access it.
-        if (context.agentLoop() == null) return null;
-        var toolContext = context.agentLoop().getToolContext();
+        if (requireAgentLoop(context) == null) return null;
+        var toolContext = toolCtx(context);
         if (toolContext == null) return null;
         return toolContext.getOrDefault("TASK_MANAGER", null);
     }

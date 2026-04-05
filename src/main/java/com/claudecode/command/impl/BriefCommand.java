@@ -1,13 +1,13 @@
 package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
-import com.claudecode.command.SlashCommand;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.console.AnsiStyle;
 
 /**
  * /brief 命令 —— 切换简洁输出模式。
  */
-public class BriefCommand implements SlashCommand {
+public class BriefCommand extends BaseSlashCommand {
 
     @Override
     public String name() { return "brief"; }
@@ -17,14 +17,14 @@ public class BriefCommand implements SlashCommand {
 
     @Override
     public String execute(String args, CommandContext context) {
-        if (context.agentLoop() == null) {
-            return AnsiStyle.red("  ✗ No active session");
+        if (requireAgentLoop(context) == null) {
+            return noSession();
         }
 
-        var toolCtx = context.agentLoop().getToolContext();
+        var toolCtx = toolCtx(context);
         boolean current = Boolean.TRUE.equals(toolCtx.get("BRIEF_MODE"));
 
-        String trimmed = (args == null) ? "" : args.trim();
+        String trimmed = args(args);
         boolean newMode = switch (trimmed) {
             case "on", "enable", "true" -> true;
             case "off", "disable", "false" -> false;

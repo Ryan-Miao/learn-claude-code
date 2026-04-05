@@ -1,7 +1,7 @@
 package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
-import com.claudecode.command.SlashCommand;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.console.AnsiStyle;
 import com.claudecode.permission.PermissionRuleEngine;
 import com.claudecode.permission.PermissionSettings;
@@ -15,7 +15,7 @@ import java.util.Map;
  * <p>
  * 支持查看当前配置、设置单个配置项，以及权限管理子命令。
  */
-public class ConfigCommand implements SlashCommand {
+public class ConfigCommand extends BaseSlashCommand {
 
     /** 支持的配置项及说明 */
     private static final Map<String, String> CONFIG_KEYS = Map.of(

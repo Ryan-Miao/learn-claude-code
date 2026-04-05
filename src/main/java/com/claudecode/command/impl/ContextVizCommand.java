@@ -1,8 +1,7 @@
 package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
-import com.claudecode.command.CommandUtils;
-import com.claudecode.command.SlashCommand;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.console.AnsiStyle;
 import com.claudecode.core.TokenEstimationService;
 
@@ -11,7 +10,7 @@ import java.util.List;
 /**
  * /ctx-viz 命令 —— 上下文可视化（token 分布、消息结构）。
  */
-public class ContextVizCommand implements SlashCommand {
+public class ContextVizCommand extends BaseSlashCommand {
 
     @Override
     public String name() { return "ctx-viz"; }
@@ -25,13 +24,13 @@ public class ContextVizCommand implements SlashCommand {
     @Override
     public String execute(String args, CommandContext context) {
         StringBuilder sb = new StringBuilder();
-        sb.append(CommandUtils.header("📊", "Context Window Visualization"));
+        sb.append(header("📊", "Context Window Visualization"));
 
-        if (context.agentLoop() == null) {
+        if (requireAgentLoop(context) == null) {
             return sb.append("  No active agent loop\n").toString();
         }
 
-        var toolCtx = context.agentLoop().getToolContext();
+        var toolCtx = toolCtx(context);
 
         // Get or create token estimation service
         TokenEstimationService estimator = new TokenEstimationService();

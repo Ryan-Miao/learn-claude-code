@@ -1,8 +1,7 @@
 package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
-import com.claudecode.command.CommandUtils;
-import com.claudecode.command.SlashCommand;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.console.AnsiStyle;
 import com.claudecode.core.InternalLogger;
 
@@ -11,7 +10,7 @@ import java.util.List;
 /**
  * /debug 命令 —— 调试模式开关 + 工具调用追踪。
  */
-public class DebugCommand implements SlashCommand {
+public class DebugCommand extends BaseSlashCommand {
 
     @Override
     public String name() { return "debug"; }
@@ -24,16 +23,16 @@ public class DebugCommand implements SlashCommand {
 
     @Override
     public String execute(String args, CommandContext context) {
-        String trimmed = CommandUtils.parseArgs(args);
+        String trimmed = args(args);
 
         StringBuilder sb = new StringBuilder();
-        sb.append(CommandUtils.header("🐛", "Debug Mode"));
+        sb.append(header("🐛", "Debug Mode"));
 
-        if (context.agentLoop() == null) {
+        if (requireAgentLoop(context) == null) {
             return sb.append("  No active agent loop\n").toString();
         }
 
-        var toolCtx = context.agentLoop().getToolContext();
+        var toolCtx = toolCtx(context);
 
         if (trimmed.equals("on") || trimmed.equals("enable")) {
             toolCtx.set("DEBUG_MODE", true);

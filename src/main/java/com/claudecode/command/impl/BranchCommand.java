@@ -1,7 +1,7 @@
 package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
-import com.claudecode.command.SlashCommand;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.console.AnsiStyle;
 import org.springframework.ai.chat.messages.Message;
 
@@ -26,7 +26,7 @@ import java.util.Map;
  *   <li>{@code /branch delete <name>} —— 删除指定分支</li>
  * </ul>
  */
-public class BranchCommand implements SlashCommand {
+public class BranchCommand extends BaseSlashCommand {
 
     /** 静态分支存储：分支名称 -> 消息快照 */
     private static final Map<String, BranchSnapshot> branches = new LinkedHashMap<>();
@@ -43,7 +43,7 @@ public class BranchCommand implements SlashCommand {
 
     @Override
     public String execute(String args, CommandContext context) {
-        if (context.agentLoop() == null) {
+        if (requireAgentLoop(context) == null) {
             return AnsiStyle.red("  ✗ AgentLoop unavailable.");
         }
 

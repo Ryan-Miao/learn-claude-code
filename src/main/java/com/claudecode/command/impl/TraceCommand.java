@@ -1,20 +1,18 @@
 package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
-import com.claudecode.command.CommandUtils;
-import com.claudecode.command.SlashCommand;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.console.AnsiStyle;
 
 import java.time.Instant;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.concurrent.ConcurrentLinkedDeque;
 
 /**
  * /trace 命令 —— 请求/响应追踪。
  * 显示 API 调用追踪信息（模型调用、tool 调用链等）。
  */
-public class TraceCommand implements SlashCommand {
+public class TraceCommand extends BaseSlashCommand {
 
     @Override
     public String name() { return "trace"; }
@@ -24,16 +22,16 @@ public class TraceCommand implements SlashCommand {
 
     @Override
     public String execute(String args, CommandContext context) {
-        String trimmed = CommandUtils.parseArgs(args);
+        String trimmed = args(args);
 
         StringBuilder sb = new StringBuilder();
-        sb.append(CommandUtils.header("🔍", "Request Tracing"));
+        sb.append(header("🔍", "Request Tracing"));
 
-        if (context.agentLoop() == null) {
+        if (requireAgentLoop(context) == null) {
             return sb.append("  No active agent loop\n").toString();
         }
 
-        var toolCtx = context.agentLoop().getToolContext();
+        var toolCtx = toolCtx(context);
 
         if (trimmed.equals("on") || trimmed.equals("enable")) {
             toolCtx.set("TRACE_ENABLED", true);
@@ -69,7 +67,7 @@ public class TraceCommand implements SlashCommand {
 
             // Show recent conversation turns
             sb.append("\n").append(AnsiStyle.bold("  Conversation State\n"));
-            sb.append("  Session ID: ").append(context.agentLoop().getToolContext()
+            sb.append("  Session ID: ").append(toolCtx(context)
                     .get("SESSION_ID") != null ? toolCtx.get("SESSION_ID") : "default").append("\n");
 
             sb.append("\n").append(AnsiStyle.bold("  Subcommands\n"));

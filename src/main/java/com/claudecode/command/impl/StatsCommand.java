@@ -1,7 +1,7 @@
 package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
-import com.claudecode.command.SlashCommand;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.console.AnsiStyle;
 import com.claudecode.core.TokenTracker;
 
@@ -23,7 +23,7 @@ import java.util.concurrent.TimeUnit;
  *   <li>JVM 运行时长</li>
  * </ul>
  */
-public class StatsCommand implements SlashCommand {
+public class StatsCommand extends BaseSlashCommand {
 
     @Override
     public String name() {
@@ -37,7 +37,7 @@ public class StatsCommand implements SlashCommand {
 
     @Override
     public String execute(String args, CommandContext context) {
-        if (context.agentLoop() == null) {
+        if (requireAgentLoop(context) == null) {
             return AnsiStyle.red("  ✗ AgentLoop unavailable.");
         }
 

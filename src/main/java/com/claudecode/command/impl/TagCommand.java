@@ -1,7 +1,7 @@
 package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
-import com.claudecode.command.SlashCommand;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.console.AnsiStyle;
 import org.springframework.ai.chat.messages.Message;
 
@@ -25,7 +25,7 @@ import java.util.Map;
  *   <li>{@code /tag goto <name>} —— 回溯到指定标签位置</li>
  * </ul>
  */
-public class TagCommand implements SlashCommand {
+public class TagCommand extends BaseSlashCommand {
 
     /** 静态标签存储：标签名称 -> 标签信息 */
     private static final Map<String, TagInfo> tags = new LinkedHashMap<>();
@@ -42,7 +42,7 @@ public class TagCommand implements SlashCommand {
 
     @Override
     public String execute(String args, CommandContext context) {
-        if (context.agentLoop() == null) {
+        if (requireAgentLoop(context) == null) {
             return AnsiStyle.red("  ✗ AgentLoop unavailable.");
         }
 

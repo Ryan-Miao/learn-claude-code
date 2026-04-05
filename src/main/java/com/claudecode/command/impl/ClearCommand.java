@@ -1,13 +1,13 @@
 package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
-import com.claudecode.command.SlashCommand;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.console.AnsiStyle;
 
 /**
  * /clear 命令 —— 清除对话历史。
  */
-public class ClearCommand implements SlashCommand {
+public class ClearCommand extends BaseSlashCommand {
 
     @Override
     public String name() {

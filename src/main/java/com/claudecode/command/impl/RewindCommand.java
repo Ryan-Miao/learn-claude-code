@@ -1,7 +1,7 @@
 package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
-import com.claudecode.command.SlashCommand;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.console.AnsiStyle;
 import org.springframework.ai.chat.messages.Message;
 
@@ -20,7 +20,7 @@ import java.util.List;
  * 使用 {@code agentLoop.getMessageHistory()} 获取当前消息历史，
  * 然后通过 {@code agentLoop.replaceHistory()} 用截断后的列表替换。
  */
-public class RewindCommand implements SlashCommand {
+public class RewindCommand extends BaseSlashCommand {
 
     /** 每个消息对包含的消息数（用户消息 + 助手消息） */
     private static final int MESSAGES_PER_PAIR = 2;
@@ -37,7 +37,7 @@ public class RewindCommand implements SlashCommand {
 
     @Override
     public String execute(String args, CommandContext context) {
-        if (context.agentLoop() == null) {
+        if (requireAgentLoop(context) == null) {
             return AnsiStyle.red("  ✗ AgentLoop unavailable.");
         }
 

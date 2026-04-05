@@ -1,6 +1,7 @@
 package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.command.SlashCommand;
 import com.claudecode.console.AnsiStyle;
 
@@ -17,7 +18,7 @@ import java.util.stream.Collectors;
  *   <li>/help [command] —— 显示特定命令详情</li>
  * </ul>
  */
-public class HelpCommand implements SlashCommand {
+public class HelpCommand extends BaseSlashCommand {
 
     @Override
     public String name() {
@@ -36,7 +37,7 @@ public class HelpCommand implements SlashCommand {
 
     @Override
     public String execute(String args, CommandContext context) {
-        String query = (args == null) ? "" : args.strip();
+        String query = args(args);
         var allCommands = context.commandRegistry().getCommands();
 
         // If a specific command name is given, show details

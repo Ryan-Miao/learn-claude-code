@@ -1,7 +1,7 @@
 package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
-import com.claudecode.command.SlashCommand;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.console.AnsiStyle;
 
 import java.util.List;
@@ -10,7 +10,7 @@ import java.util.Random;
 /**
  * /tips 命令 —— 显示使用技巧和建议。
  */
-public class TipsCommand implements SlashCommand {
+public class TipsCommand extends BaseSlashCommand {
 
     private static final List<String> TIPS = List.of(
             "Use /compact when the conversation gets long to reduce token usage",
@@ -45,7 +45,7 @@ public class TipsCommand implements SlashCommand {
 
     @Override
     public String execute(String args, CommandContext context) {
-        String trimmed = (args == null) ? "" : args.trim();
+        String trimmed = args(args);
 
         if ("all".equals(trimmed)) {
             StringBuilder sb = new StringBuilder();

@@ -1,7 +1,7 @@
 package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
-import com.claudecode.command.SlashCommand;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.console.AnsiStyle;
 
 import java.util.List;
@@ -12,7 +12,7 @@ import java.util.Map;
  * <p>
  * 支持查看当前模型信息和切换到其他模型。
  */
-public class ModelCommand implements SlashCommand {
+public class ModelCommand extends BaseSlashCommand {
 
     private static final Map<String, String> AVAILABLE_MODELS = Map.of(
             "sonnet", "claude-sonnet-4-20250514",

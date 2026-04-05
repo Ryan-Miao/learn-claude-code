@@ -1,14 +1,14 @@
 package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
-import com.claudecode.command.SlashCommand;
+import com.claudecode.command.BaseSlashCommand;
 
 import java.util.List;
 
 /**
  * /exit 命令 —— 退出应用。
  */
-public class ExitCommand implements SlashCommand {
+public class ExitCommand extends BaseSlashCommand {
 
     @Override
     public String name() {

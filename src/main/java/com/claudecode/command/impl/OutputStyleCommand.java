@@ -1,13 +1,13 @@
 package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
-import com.claudecode.command.SlashCommand;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.console.AnsiStyle;
 
 /**
  * /output-style 命令 —— 输出风格设置。
  */
-public class OutputStyleCommand implements SlashCommand {
+public class OutputStyleCommand extends BaseSlashCommand {
 
     @Override
     public String name() { return "output-style"; }
@@ -17,15 +17,15 @@ public class OutputStyleCommand implements SlashCommand {
 
     @Override
     public String execute(String args, CommandContext context) {
-        if (context.agentLoop() == null) {
-            return AnsiStyle.red("  ✗ No active session");
+        if (requireAgentLoop(context) == null) {
+            return noSession();
         }
 
-        var toolCtx = context.agentLoop().getToolContext();
+        var toolCtx = toolCtx(context);
         String current = (String) toolCtx.get("OUTPUT_STYLE");
         if (current == null) current = "markdown";
 
-        String trimmed = (args == null) ? "" : args.trim().toLowerCase();
+        String trimmed = args(args).toLowerCase();
 
         if (trimmed.isEmpty()) {
             return "\n" + AnsiStyle.bold("  📝 Output Style\n")

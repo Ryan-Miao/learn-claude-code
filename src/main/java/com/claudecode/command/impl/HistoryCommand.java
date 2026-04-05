@@ -1,7 +1,7 @@
 package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
-import com.claudecode.command.SlashCommand;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.console.AnsiStyle;
 import com.claudecode.core.ConversationPersistence;
 
@@ -10,7 +10,7 @@ import com.claudecode.core.ConversationPersistence;
  * <p>
  * 显示最近的对话记录，包括时间、摘要和消息数量。
  */
-public class HistoryCommand implements SlashCommand {
+public class HistoryCommand extends BaseSlashCommand {
 
     @Override
     public String name() {

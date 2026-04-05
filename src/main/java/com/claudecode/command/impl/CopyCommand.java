@@ -1,7 +1,7 @@
 package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
-import com.claudecode.command.SlashCommand;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.console.AnsiStyle;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
@@ -16,7 +16,7 @@ import java.util.List;
  * 从消息历史中提取最后一条 AssistantMessage 的文本内容，
  * 使用 AWT 剪贴板 API 复制。
  */
-public class CopyCommand implements SlashCommand {
+public class CopyCommand extends BaseSlashCommand {
 
     @Override
     public String name() {

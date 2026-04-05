@@ -1,13 +1,13 @@
 package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
-import com.claudecode.command.SlashCommand;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.console.AnsiStyle;
 
 /**
  * /theme 命令 —— 切换主题（dark/light/auto）。
  */
-public class ThemeCommand implements SlashCommand {
+public class ThemeCommand extends BaseSlashCommand {
 
     @Override
     public String name() { return "theme"; }
@@ -17,15 +17,15 @@ public class ThemeCommand implements SlashCommand {
 
     @Override
     public String execute(String args, CommandContext context) {
-        if (context.agentLoop() == null) {
-            return AnsiStyle.red("  ✗ No active session");
+        if (requireAgentLoop(context) == null) {
+            return noSession();
         }
 
-        var toolCtx = context.agentLoop().getToolContext();
+        var toolCtx = toolCtx(context);
         String current = (String) toolCtx.get("THEME");
         if (current == null) current = "dark";
 
-        String trimmed = (args == null) ? "" : args.trim().toLowerCase();
+        String trimmed = args(args).toLowerCase();
 
         if (trimmed.isEmpty()) {
             return "\n" + AnsiStyle.bold("  🎨 Theme Settings\n")

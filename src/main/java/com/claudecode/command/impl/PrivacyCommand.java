@@ -1,13 +1,13 @@
 package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
-import com.claudecode.command.SlashCommand;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.console.AnsiStyle;
 
 /**
  * /privacy 命令 —— 隐私设置查看和修改。
  */
-public class PrivacyCommand implements SlashCommand {
+public class PrivacyCommand extends BaseSlashCommand {
 
     @Override
     public String name() { return "privacy"; }
@@ -17,16 +17,16 @@ public class PrivacyCommand implements SlashCommand {
 
     @Override
     public String execute(String args, CommandContext context) {
-        if (context.agentLoop() == null) {
-            return AnsiStyle.red("  ✗ No active session");
+        if (requireAgentLoop(context) == null) {
+            return noSession();
         }
 
-        var toolCtx = context.agentLoop().getToolContext();
+        var toolCtx = toolCtx(context);
         boolean telemetryEnabled = Boolean.TRUE.equals(toolCtx.get("TELEMETRY_ENABLED"));
         boolean sessionLogging = !Boolean.FALSE.equals(toolCtx.get("SESSION_LOGGING"));
         boolean memoryPersist = !Boolean.FALSE.equals(toolCtx.get("MEMORY_PERSIST"));
 
-        String trimmed = (args == null) ? "" : args.trim().toLowerCase();
+        String trimmed = args(args).toLowerCase();
 
         if (trimmed.isEmpty()) {
             StringBuilder sb = new StringBuilder();

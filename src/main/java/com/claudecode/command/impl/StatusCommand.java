@@ -2,7 +2,7 @@ package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
 import com.claudecode.command.CommandUtils;
-import com.claudecode.command.SlashCommand;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.console.AnsiStyle;
 import com.claudecode.core.TokenTracker;
 
@@ -15,7 +15,7 @@ import java.time.Instant;
  * <p>
  * 展示当前模型、Token 用量、工具数、消息数、内存和运行时间等信息。
  */
-public class StatusCommand implements SlashCommand {
+public class StatusCommand extends BaseSlashCommand {
 
     private final Instant startTime = Instant.now();
 
@@ -32,7 +32,7 @@ public class StatusCommand implements SlashCommand {
     @Override
     public String execute(String args, CommandContext context) {
         StringBuilder sb = new StringBuilder();
-        sb.append(CommandUtils.header("📊", "Session Status"));
+        sb.append(header("📊", "Session Status"));
 
         // 模型信息
         TokenTracker tracker = context.agentLoop().getTokenTracker();

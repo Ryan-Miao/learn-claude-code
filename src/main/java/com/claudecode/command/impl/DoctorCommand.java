@@ -1,7 +1,7 @@
 package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
-import com.claudecode.command.SlashCommand;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.console.AnsiStyle;
 
 import java.io.File;
@@ -21,7 +21,7 @@ import java.util.List;
  *   <li>磁盘空间</li>
  * </ul>
  */
-public class DoctorCommand implements SlashCommand {
+public class DoctorCommand extends BaseSlashCommand {
 
     @Override
     public String name() {

@@ -1,14 +1,13 @@
 package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
-import com.claudecode.command.SlashCommand;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.console.AnsiStyle;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
 
 /**
  * /init 命令 —— 初始化项目 CLAUDE.md。
@@ -16,7 +15,7 @@ import java.util.List;
  * 对应 claude-code/src/commands/init.ts。
  * 检测项目类型并生成 CLAUDE.md 模板文件。
  */
-public class InitCommand implements SlashCommand {
+public class InitCommand extends BaseSlashCommand {
 
     @Override
     public String name() {

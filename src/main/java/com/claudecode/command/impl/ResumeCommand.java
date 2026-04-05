@@ -1,7 +1,7 @@
 package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
-import com.claudecode.command.SlashCommand;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.console.AnsiStyle;
 import com.claudecode.core.ConversationPersistence;
 import com.claudecode.core.ConversationPersistence.ConversationSummary;
@@ -21,7 +21,7 @@ import java.util.List;
  *   <li>/resume [序号] —— 恢复指定序号的对话</li>
  * </ul>
  */
-public class ResumeCommand implements SlashCommand {
+public class ResumeCommand extends BaseSlashCommand {
 
     @Override
     public String name() {
@@ -38,7 +38,7 @@ public class ResumeCommand implements SlashCommand {
         ConversationPersistence persistence = new ConversationPersistence();
         List<ConversationSummary> conversations = persistence.listConversations();
 
-        args = args == null ? "" : args.strip();
+        args = args(args);
 
         if (conversations.isEmpty()) {
             return AnsiStyle.yellow("  ⚠ No saved conversations\n")

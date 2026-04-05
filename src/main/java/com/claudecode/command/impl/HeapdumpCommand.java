@@ -2,7 +2,7 @@ package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
 import com.claudecode.command.CommandUtils;
-import com.claudecode.command.SlashCommand;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.console.AnsiStyle;
 
 import java.lang.management.ManagementFactory;
@@ -16,7 +16,7 @@ import java.time.format.DateTimeFormatter;
 /**
  * /heapdump 命令 —— JVM 堆转储（Java 独有优势）。
  */
-public class HeapdumpCommand implements SlashCommand {
+public class HeapdumpCommand extends BaseSlashCommand {
 
     @Override
     public String name() { return "heapdump"; }
@@ -26,26 +26,26 @@ public class HeapdumpCommand implements SlashCommand {
 
     @Override
     public String execute(String args, CommandContext context) {
-        String trimmed = CommandUtils.parseArgs(args);
+        String trimmed = args(args);
 
         StringBuilder sb = new StringBuilder();
-        sb.append(CommandUtils.header("📦", "JVM Heap Dump"));
+        sb.append(header("📦", "JVM Heap Dump"));
 
         if (trimmed.equals("info") || trimmed.isEmpty()) {
             MemoryMXBean memBean = ManagementFactory.getMemoryMXBean();
             MemoryUsage heap = memBean.getHeapMemoryUsage();
             MemoryUsage nonHeap = memBean.getNonHeapMemoryUsage();
 
-            sb.append(CommandUtils.subtitle("Heap Memory")).append("\n");
+            sb.append(subtitle("Heap Memory")).append("\n");
             sb.append("  Used:      ").append(CommandUtils.formatBytes(heap.getUsed())).append("\n");
             sb.append("  Committed: ").append(CommandUtils.formatBytes(heap.getCommitted())).append("\n");
             sb.append("  Max:       ").append(CommandUtils.formatBytes(heap.getMax())).append("\n\n");
 
-            sb.append(CommandUtils.subtitle("Non-Heap Memory")).append("\n");
+            sb.append(subtitle("Non-Heap Memory")).append("\n");
             sb.append("  Used:      ").append(CommandUtils.formatBytes(nonHeap.getUsed())).append("\n");
             sb.append("  Committed: ").append(CommandUtils.formatBytes(nonHeap.getCommitted())).append("\n\n");
 
-            sb.append(CommandUtils.subtitle("Memory Pools")).append("\n");
+            sb.append(subtitle("Memory Pools")).append("\n");
             for (MemoryPoolMXBean pool : ManagementFactory.getMemoryPoolMXBeans()) {
                 MemoryUsage usage = pool.getUsage();
                 if (usage != null && usage.getUsed() > 0) {
@@ -66,12 +66,12 @@ public class HeapdumpCommand implements SlashCommand {
                         com.sun.management.HotSpotDiagnosticMXBean.class);
                 hotspot.dumpHeap(dumpPath.toString(), true);
                 long fileSize = dumpPath.toFile().length();
-                sb.append(CommandUtils.success("Heap dump saved to:")).append("\n");
+                sb.append(success("Heap dump saved to:")).append("\n");
                 sb.append("  ").append(AnsiStyle.cyan(dumpPath.toString())).append("\n");
                 sb.append("  Size: ").append(CommandUtils.formatBytes(fileSize)).append("\n\n");
                 sb.append(AnsiStyle.dim("  Analyze with: jhat, MAT, or VisualVM"));
             } catch (Exception e) {
-                sb.append(CommandUtils.error("Failed to create heap dump: " + e.getMessage())).append("\n");
+                sb.append(error("Failed to create heap dump: " + e.getMessage())).append("\n");
                 sb.append(AnsiStyle.dim("  Requires HotSpot JVM (OpenJDK or Oracle JDK)"));
             }
 
@@ -87,7 +87,7 @@ public class HeapdumpCommand implements SlashCommand {
             sb.append("  Freed:  ").append(AnsiStyle.green(CommandUtils.formatBytes(Math.max(0, freed)))).append("\n");
 
         } else {
-            sb.append(CommandUtils.subtitle("Subcommands")).append("\n");
+            sb.append(subtitle("Subcommands")).append("\n");
             sb.append("  /heapdump         Show memory pool info\n");
             sb.append("  /heapdump dump    Generate .hprof file\n");
             sb.append("  /heapdump gc      Trigger garbage collection\n");

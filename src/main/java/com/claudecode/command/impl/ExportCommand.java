@@ -1,7 +1,7 @@
 package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
-import com.claudecode.command.SlashCommand;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.console.AnsiStyle;
 import org.springframework.ai.chat.messages.*;
 
@@ -22,7 +22,7 @@ import java.util.List;
  *   <li>/export [路径] —— 导出到指定路径</li>
  * </ul>
  */
-public class ExportCommand implements SlashCommand {
+public class ExportCommand extends BaseSlashCommand {
 
     private static final DateTimeFormatter TIMESTAMP_FMT = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
 
@@ -46,7 +46,7 @@ public class ExportCommand implements SlashCommand {
         }
 
         // 确定输出路径
-        args = args == null ? "" : args.strip();
+        args = args(args);
         Path outputPath;
         if (!args.isEmpty()) {
             outputPath = Path.of(args);

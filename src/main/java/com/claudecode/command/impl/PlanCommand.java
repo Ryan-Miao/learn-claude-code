@@ -1,7 +1,7 @@
 package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
-import com.claudecode.command.SlashCommand;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.permission.PermissionSettings;
 import com.claudecode.permission.PermissionTypes.PermissionMode;
 
@@ -10,7 +10,7 @@ import com.claudecode.permission.PermissionTypes.PermissionMode;
  * <p>
  * 切换计划模式开关。在计划模式下，AI只能分析不能修改。
  */
-public class PlanCommand implements SlashCommand {
+public class PlanCommand extends BaseSlashCommand {
 
     private final PermissionSettings permissionSettings;
 

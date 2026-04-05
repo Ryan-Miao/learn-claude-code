@@ -1,8 +1,7 @@
 package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
-import com.claudecode.command.CommandUtils;
-import com.claudecode.command.SlashCommand;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.console.AnsiStyle;
 
 /**
@@ -10,7 +9,7 @@ import com.claudecode.console.AnsiStyle;
  * <p>
  * 展示 Claude Code Java 版本、运行时环境等信息。
  */
-public class VersionCommand implements SlashCommand {
+public class VersionCommand extends BaseSlashCommand {
 
     /** 当前版本号 */
     public static final String VERSION = "1.0.0";
@@ -29,7 +28,7 @@ public class VersionCommand implements SlashCommand {
     @Override
     public String execute(String args, CommandContext context) {
         StringBuilder sb = new StringBuilder();
-        sb.append(CommandUtils.header("🏷️", "Claude Code Java"));
+        sb.append(header("🏷️", "Claude Code Java"));
 
         sb.append("  ").append(AnsiStyle.bold("Version:      "))
                 .append(AnsiStyle.cyan("v" + VERSION)).append("\n");

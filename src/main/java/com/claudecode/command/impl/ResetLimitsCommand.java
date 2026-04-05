@@ -1,8 +1,7 @@
 package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
-import com.claudecode.command.CommandUtils;
-import com.claudecode.command.SlashCommand;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.console.AnsiStyle;
 import com.claudecode.core.RateLimiter;
 
@@ -11,7 +10,7 @@ import java.util.List;
 /**
  * /reset-limits 命令 —— 重置速率限制。
  */
-public class ResetLimitsCommand implements SlashCommand {
+public class ResetLimitsCommand extends BaseSlashCommand {
 
     @Override
     public String name() { return "reset-limits"; }
@@ -25,13 +24,13 @@ public class ResetLimitsCommand implements SlashCommand {
     @Override
     public String execute(String args, CommandContext context) {
         StringBuilder sb = new StringBuilder();
-        sb.append(CommandUtils.header("🔄", "Rate Limit Reset"));
+        sb.append(header("🔄", "Rate Limit Reset"));
 
-        if (context.agentLoop() == null) {
+        if (requireAgentLoop(context) == null) {
             return sb.append("  No active agent loop\n").toString();
         }
 
-        var toolCtx = context.agentLoop().getToolContext();
+        var toolCtx = toolCtx(context);
         Object limiterObj = toolCtx.get("RATE_LIMITER");
 
         if (limiterObj instanceof RateLimiter limiter) {

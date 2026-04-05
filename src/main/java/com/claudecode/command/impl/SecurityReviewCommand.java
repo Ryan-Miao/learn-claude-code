@@ -1,7 +1,7 @@
 package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
-import com.claudecode.command.SlashCommand;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.console.AnsiStyle;
 
 import java.io.BufferedReader;
@@ -25,7 +25,7 @@ import java.util.stream.Collectors;
  *   <li>依赖安全问题</li>
  * </ul>
  */
-public class SecurityReviewCommand implements SlashCommand {
+public class SecurityReviewCommand extends BaseSlashCommand {
 
     @Override
     public String name() {
@@ -44,7 +44,7 @@ public class SecurityReviewCommand implements SlashCommand {
 
     @Override
     public String execute(String args, CommandContext context) {
-        if (context.agentLoop() == null) {
+        if (requireAgentLoop(context) == null) {
             return AnsiStyle.red("  ✗ AgentLoop unavailable, cannot perform security review.");
         }
 

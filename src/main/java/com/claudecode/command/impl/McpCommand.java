@@ -2,7 +2,7 @@ package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
 import com.claudecode.command.CommandUtils;
-import com.claudecode.command.SlashCommand;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.console.AnsiStyle;
 import com.claudecode.mcp.McpClient;
 import com.claudecode.mcp.McpException;
@@ -25,7 +25,7 @@ import java.util.*;
  *   <li>{@code /mcp reload} —— 从配置文件重新加载</li>
  * </ul>
  */
-public class McpCommand implements SlashCommand {
+public class McpCommand extends BaseSlashCommand {
 
     @Override
     public String name() {
@@ -48,7 +48,7 @@ public class McpCommand implements SlashCommand {
             return AnsiStyle.red("  ❌ MCP manager not initialized");
         }
 
-        String trimmed = CommandUtils.parseArgs(args);
+        String trimmed = args(args);
         if (trimmed.isEmpty()) {
             return showStatus(manager);
         }
@@ -73,7 +73,7 @@ public class McpCommand implements SlashCommand {
      */
     private String showStatus(McpManager manager) {
         StringBuilder sb = new StringBuilder();
-        sb.append(CommandUtils.header("🔌", "MCP Server Status"));
+        sb.append(header("🔌", "MCP Server Status"));
 
         Map<String, McpClient> clients = manager.getClients();
         if (clients.isEmpty()) {
@@ -192,7 +192,7 @@ public class McpCommand implements SlashCommand {
      */
     private String handleTools(McpManager manager, String args) {
         StringBuilder sb = new StringBuilder();
-        sb.append(CommandUtils.header("🛠️", "MCP Tools"));
+        sb.append(header("🛠️", "MCP Tools"));
 
         String serverFilter = args.isEmpty() ? null : args.split("\\s+")[0];
 
@@ -231,7 +231,7 @@ public class McpCommand implements SlashCommand {
      */
     private String handleResources(McpManager manager, String args) {
         StringBuilder sb = new StringBuilder();
-        sb.append(CommandUtils.header("📦", "MCP Resources"));
+        sb.append(header("📦", "MCP Resources"));
 
         String serverFilter = args.isEmpty() ? null : args.split("\\s+")[0];
 

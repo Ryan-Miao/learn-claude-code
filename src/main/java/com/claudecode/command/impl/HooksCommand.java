@@ -1,7 +1,7 @@
 package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
-import com.claudecode.command.SlashCommand;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.console.AnsiStyle;
 import com.claudecode.core.HookManager;
 import com.claudecode.core.HookManager.HookRegistration;
@@ -17,7 +17,7 @@ import java.util.stream.Collectors;
  * 按 Hook 类型分组展示，包含每个 Hook 的名称和优先级。
  * 如果没有注册任何 Hook，则显示提示信息。
  */
-public class HooksCommand implements SlashCommand {
+public class HooksCommand extends BaseSlashCommand {
 
     @Override
     public String name() {

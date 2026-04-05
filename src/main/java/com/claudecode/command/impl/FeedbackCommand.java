@@ -1,7 +1,7 @@
 package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
-import com.claudecode.command.SlashCommand;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.console.AnsiStyle;
 
 import java.io.IOException;
@@ -12,7 +12,7 @@ import java.time.Instant;
 /**
  * /feedback 命令 —— 提交反馈（本地保存）。
  */
-public class FeedbackCommand implements SlashCommand {
+public class FeedbackCommand extends BaseSlashCommand {
 
     @Override
     public String name() { return "feedback"; }
@@ -22,7 +22,7 @@ public class FeedbackCommand implements SlashCommand {
 
     @Override
     public String execute(String args, CommandContext context) {
-        String trimmed = (args == null) ? "" : args.trim();
+        String trimmed = args(args);
 
         if (trimmed.isEmpty()) {
             return AnsiStyle.yellow("  Usage: /feedback <your feedback text>")

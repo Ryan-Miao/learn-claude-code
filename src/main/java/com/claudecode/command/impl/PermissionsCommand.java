@@ -1,7 +1,7 @@
 package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
-import com.claudecode.command.SlashCommand;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.console.AnsiStyle;
 import com.claudecode.permission.PermissionSettings;
 import com.claudecode.permission.PermissionTypes;
@@ -14,7 +14,7 @@ import java.util.List;
  * 对应 claude-code/src/commands/permissions.ts。
  * 显示当前权限模式和规则列表。
  */
-public class PermissionsCommand implements SlashCommand {
+public class PermissionsCommand extends BaseSlashCommand {
 
     private final PermissionSettings settings;
 

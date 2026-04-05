@@ -2,7 +2,7 @@ package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
 import com.claudecode.command.CommandUtils;
-import com.claudecode.command.SlashCommand;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.console.AnsiStyle;
 
 import java.io.File;
@@ -13,7 +13,7 @@ import java.util.TreeMap;
 /**
  * /env 命令 —— 显示环境变量和配置信息。
  */
-public class EnvCommand implements SlashCommand {
+public class EnvCommand extends BaseSlashCommand {
 
     @Override
     public String name() { return "env"; }
@@ -23,12 +23,12 @@ public class EnvCommand implements SlashCommand {
 
     @Override
     public String execute(String args, CommandContext context) {
-        String trimmed = CommandUtils.parseArgs(args);
+        String trimmed = args(args);
 
         StringBuilder sb = new StringBuilder();
-        sb.append(CommandUtils.header("🔧", "Environment"));
+        sb.append(header("🔧", "Environment"));
 
-        sb.append(CommandUtils.subtitle("System")).append("\n");
+        sb.append(subtitle("System")).append("\n");
         sb.append("  OS:       ").append(System.getProperty("os.name")).append(" ")
                 .append(System.getProperty("os.version")).append("\n");
         sb.append("  Java:     ").append(System.getProperty("java.version"))
@@ -38,13 +38,13 @@ public class EnvCommand implements SlashCommand {
                 .append(" / ").append(CommandUtils.formatBytes(Runtime.getRuntime().maxMemory())).append("\n");
         sb.append("  PID:      ").append(ProcessHandle.current().pid()).append("\n\n");
 
-        sb.append(CommandUtils.subtitle("Paths")).append("\n");
+        sb.append(subtitle("Paths")).append("\n");
         sb.append("  WorkDir:  ").append(System.getProperty("user.dir")).append("\n");
         sb.append("  Home:     ").append(System.getProperty("user.home")).append("\n");
         sb.append("  Config:   ").append(System.getProperty("user.home"))
                 .append(File.separator).append(".claude-code-java").append("\n\n");
 
-        sb.append(CommandUtils.subtitle("Environment Variables")).append("\n");
+        sb.append(subtitle("Environment Variables")).append("\n");
         List<String> relevantVars = List.of(
                 "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "CLAUDE_CODE_",
                 "JAVA_HOME", "PATH", "SHELL", "TERM", "EDITOR"

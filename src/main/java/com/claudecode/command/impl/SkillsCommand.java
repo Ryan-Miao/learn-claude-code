@@ -2,7 +2,7 @@ package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
 import com.claudecode.command.CommandUtils;
-import com.claudecode.command.SlashCommand;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.console.AnsiStyle;
 import com.claudecode.context.SkillLoader;
 
@@ -14,7 +14,7 @@ import java.util.List;
  * <p>
  * 扫描并显示从用户级、项目级和命令目录加载的技能文件。
  */
-public class SkillsCommand implements SlashCommand {
+public class SkillsCommand extends BaseSlashCommand {
 
     @Override
     public String name() {
@@ -51,7 +51,7 @@ public class SkillsCommand implements SlashCommand {
         }
 
         StringBuilder sb = new StringBuilder();
-        sb.append(CommandUtils.header("🎯", "Available Skills"));
+        sb.append(header("🎯", "Available Skills"));
 
         if (skills.isEmpty()) {
             sb.append(AnsiStyle.dim("  (No available skills)\n\n"));
@@ -89,7 +89,7 @@ public class SkillsCommand implements SlashCommand {
 
     private String formatSkillDetail(SkillLoader.Skill skill) {
         StringBuilder sb = new StringBuilder();
-        sb.append(CommandUtils.header("🎯", "Skill: " + skill.name()));
+        sb.append(header("🎯", "Skill: " + skill.name()));
 
         sb.append("  ").append(AnsiStyle.bold("Source: ")).append(skill.source()).append("\n");
         if (!skill.description().isEmpty()) {

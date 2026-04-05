@@ -1,7 +1,7 @@
 package com.claudecode.command.impl;
 
 import com.claudecode.command.CommandContext;
-import com.claudecode.command.SlashCommand;
+import com.claudecode.command.BaseSlashCommand;
 import com.claudecode.console.AnsiStyle;
 
 import java.io.IOException;
@@ -21,7 +21,7 @@ import java.util.List;
  *   <li>/memory user —— 查看用户级 CLAUDE.md</li>
  * </ul>
  */
-public class MemoryCommand implements SlashCommand {
+public class MemoryCommand extends BaseSlashCommand {
 
     @Override
     public String name() {
@@ -40,7 +40,7 @@ public class MemoryCommand implements SlashCommand {
 
     @Override
     public String execute(String args, CommandContext context) {
-        args = args == null ? "" : args.strip();
+        args = args(args);
 
         if (args.startsWith("add ")) {
             return handleAdd(args.substring(4).strip());
