@@ -17,6 +17,7 @@ export interface ChatResponse {
   thinking: string;
   toolCalls: ToolCall[];
   apiRoundTrips?: ApiRoundTrip[];
+  httpTraffic?: HttpTraffic[];
 }
 
 export interface ApiRoundTrip {
@@ -36,6 +37,24 @@ export interface ApiRoundTrip {
     durationMs: number;
     toolCalls: { name: string; input: string }[];
   };
+}
+
+export interface CapturedHeader {
+  name: string;
+  value: string;
+  sensitive: boolean;
+}
+
+export interface HttpTraffic {
+  round: number;
+  url: string;
+  method: string;
+  statusCode: number;
+  durationMs: number;
+  requestHeaders: CapturedHeader[];
+  requestBody: string;
+  responseHeaders: CapturedHeader[];
+  responseBody: string;
 }
 
 export async function sendChatMessage(
