@@ -163,7 +163,7 @@ export function NetworkPanel({ traffic }: NetworkPanelProps) {
             />
           )}
           {detailTab === "request" && (
-            <BodyView body={selected.requestBody} />
+            <BodyView body={selected.requestBody} showTokens />
           )}
           {detailTab === "response" && (
             <BodyView body={selected.responseBody} />
@@ -228,9 +228,18 @@ function HeaderSection({
   );
 }
 
-/** Body sub-view with JSON syntax highlighting */
-function BodyView({ body }: { body: string }) {
+/** Rough token estimate — ~4 chars per token for English/code, ~2 for CJK */
+function estimateTokens(text: string): number {
+  if (!text) return 0;
+  const cjk = (text.match(/[\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]/g) || []).length;
+  const rest = text.length - cjk;
+  return Math.ceil(cjk / 2 + rest / 4);
+}
+
+/** Body sub-view with JSON syntax highlighting, copy button, and token estimate */
+function BodyView({ body, showTokens }: { body: string; showTokens?: boolean }) {
   const [expanded, setExpanded] = useState(false);
+  const [copied, setCopied] = useState(false);
   const TRUNCATE_SIZE = 10240; // 10KB
 
   if (!body) {
@@ -248,8 +257,37 @@ function BodyView({ body }: { body: string }) {
     formatted = displayBody;
   }
 
+  const tokenCount = estimateTokens(body);
+
+  const handleCopy = async () => {
+    // Copy the pretty-printed version
+    let copyText: string;
+    try {
+      copyText = JSON.stringify(JSON.parse(body), null, 2);
+    } catch {
+      copyText = body;
+    }
+    await navigator.clipboard.writeText(copyText);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
   return (
     <div className="nm-body-scroll">
+      {/* Toolbar: copy + token estimate */}
+      <div className="nm-body-toolbar">
+        <button className="nm-copy-btn" onClick={handleCopy}>
+          {copied ? "✓ Copied" : "Copy"}
+        </button>
+        {showTokens && (
+          <span className="nm-token-badge">
+            ~{tokenCount.toLocaleString()} tokens
+          </span>
+        )}
+        <span className="nm-text-muted" style={{ marginLeft: "auto" }}>
+          {(body.length / 1024).toFixed(1)} KB
+        </span>
+      </div>
       <pre className="nm-json-pre">
         <code
           dangerouslySetInnerHTML={{ __html: highlightJson(formatted) }}
