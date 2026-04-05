@@ -176,6 +176,11 @@ public class AppConfig {
                 new SecurityReviewCommand(),
                 new McpCommand(),
                 new PluginCommand(),
+                // Phase 2F 命令
+                new DoctorCommand(),
+                new SessionCommand(),
+                new AgentCommand(),
+                new RenameCommand(),
                 // Exit 放最后
                 new ExitCommand()
         );
