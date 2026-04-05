@@ -187,6 +187,19 @@ public class AppConfig {
                 new SessionCommand(),
                 new AgentCommand(),
                 new RenameCommand(),
+                // Phase 4B 命令
+                new BriefCommand(),
+                new VimCommand(),
+                new ThemeCommand(),
+                new UsageCommand(),
+                new TipsCommand(),
+                new OutputStyleCommand(),
+                new EnvCommand(),
+                new PerformanceCommand(),
+                new PrivacyCommand(),
+                new FeedbackCommand(),
+                new ReleaseNotesCommand(),
+                new KeybindingsCommand(),
                 // Exit 放最后
                 new ExitCommand()
         );
