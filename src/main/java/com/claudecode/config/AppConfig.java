@@ -121,7 +121,11 @@ public class AppConfig {
                 new ListMcpResourcesTool(),
                 new ReadMcpResourceTool(),
                 new EnterWorktreeTool(),
-                new ExitWorktreeTool()
+                new ExitWorktreeTool(),
+                // P4: 新工具
+                new LSPTool(),
+                new BriefTool(),
+                new NotificationTool()
         );
 
         // P2: 注册 MCP 工具桥接（将远程 MCP 工具映射为本地工具）
