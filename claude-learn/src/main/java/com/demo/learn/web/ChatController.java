@@ -1,14 +1,15 @@
 package com.demo.learn.web;
 
 import com.demo.learn.core.config.AiConfig;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.ToolResponseMessage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.Generation;
 import org.springframework.ai.tool.ToolCallback;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,17 +20,13 @@ import java.util.*;
 public class ChatController {
 
     private final AiConfig aiConfig;
+    private final HttpTrafficCapture trafficCapture;
     private final ChatSession chatSession = new ChatSession();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    @Value("${spring.ai.anthropic.base-url:${spring.ai.openai.base-url:https://api.openai.com}}")
-    private String aiBaseUrl;
-
-    @Value("${AI_API_KEY:${spring.ai.anthropic.api-key:${spring.ai.openai.api-key:}}}")
-    private String apiKey;
-
-    public ChatController(AiConfig aiConfig) {
+    public ChatController(AiConfig aiConfig, HttpTrafficCapture trafficCapture) {
         this.aiConfig = aiConfig;
+        this.trafficCapture = trafficCapture;
     }
 
     @GetMapping("/agents")
@@ -56,56 +53,111 @@ public class ChatController {
 
         // Capture tool calls during this request
         List<CaptureToolCallback.CapturedToolCall> capturedCalls = new ArrayList<>();
+
+        // Build tool callback lookup (name → callback) for manual execution
         List<ToolCallback> toolCallbacks =
                 AgentRegistry.buildToolCallbacks(request.agentId(), capturedCalls);
+        Map<String, ToolCallback> toolLookup = new HashMap<>();
+        for (ToolCallback cb : toolCallbacks) {
+            toolLookup.put(cb.getToolDefinition().name(), cb);
+        }
 
-        // Capture API round-trips during this request
-        List<HttpCaptureAdvisor.ApiRoundTrip> capturedRounds = new ArrayList<>();
+        // Start HTTP traffic capture for this request
+        trafficCapture.startCapture();
 
         try {
-            // Build ChatClient with captured tool callbacks and HTTP capture advisor
+            // Build ChatClient WITHOUT advisors — HTTP capture happens at transport layer
             ChatClient chatClient = ChatClient.builder(aiConfig.get())
-                    .defaultToolCallbacks(toolCallbacks.toArray(new ToolCallback[0]))
-                    .defaultAdvisors(new HttpCaptureAdvisor(capturedRounds))
+                    .defaultToolCallbacks(toolCallbacks.toArray(ToolCallback[]::new))
                     .build();
 
-            // Get conversation history (system prompt + past messages + current user message)
-            List<Message> history = new ArrayList<>(chatSession.getHistory(request.sessionId()));
+            // Snapshot existing history size for session sync after loop
+            List<Message> existingHistory = chatSession.getHistory(request.sessionId());
+            int existingSize = existingHistory.size();
 
-            // Call with full conversation history
-            ChatResponse response = chatClient.prompt()
-                    .messages(history)
-                    .call()
-                    .chatResponse();
+            // Local mutable message list for the agent loop
+            List<Message> messages = new ArrayList<>(existingHistory);
+            int maxIterations = 20;
+            ChatResponse finalResponse = null;
 
-            // Extract thinking and text
-            StringBuilder textResponse = new StringBuilder();
-            StringBuilder thinkingResponse = new StringBuilder();
+            for (int i = 0; i < maxIterations; i++) {
+                ChatResponse response = chatClient.prompt()
+                        .messages(messages)
+                        .call()
+                        .chatResponse();
 
-            for (Generation gen : response.getResults()) {
-                AssistantMessage msg = gen.getOutput();
-                // Anthropic thinking blocks have specific metadata keys
-                if (msg.getMetadata().containsKey("signature")
-                        || msg.getMetadata().containsKey("thinking")) {
-                    String text = msg.getText();
-                    if (text != null && !text.isBlank()) {
-                        if (!thinkingResponse.isEmpty()) thinkingResponse.append("\n");
-                        thinkingResponse.append(text);
-                    }
-                } else {
-                    String text = msg.getText();
-                    if (text != null && !text.isBlank()) {
-                        if (!textResponse.isEmpty()) textResponse.append("\n");
-                        textResponse.append(text);
+                finalResponse = response;
+
+                if (response.getResults().isEmpty()) break;
+                AssistantMessage assistantMsg = response.getResults().get(0).getOutput();
+
+                List<AssistantMessage.ToolCall> toolCalls = assistantMsg.getToolCalls();
+                if (toolCalls == null || toolCalls.isEmpty()) {
+                    // No tool calls — final response
+                    messages.add(assistantMsg);
+                    break;
+                }
+
+                // Add assistant message (with tool calls) to conversation
+                messages.add(assistantMsg);
+
+                // Execute each tool call and add results
+                for (AssistantMessage.ToolCall tc : toolCalls) {
+                    try {
+                        ToolCallback callback = toolLookup.get(tc.name());
+                        String result = (callback != null)
+                                ? callback.call(tc.arguments())
+                                : "Error: unknown tool " + tc.name();
+                        messages.add(ToolResponseMessage.builder()
+                                .responses(List.of(new ToolResponseMessage.ToolResponse(
+                                        tc.id(), tc.name(), result)))
+                                .build());
+                    } catch (Exception e) {
+                        // Tool execution error — report as tool result, don't crash
+                        messages.add(ToolResponseMessage.builder()
+                                .responses(List.of(new ToolResponseMessage.ToolResponse(
+                                        tc.id(), tc.name(), "Tool execution error: " + e.getMessage())))
+                                .build());
                     }
                 }
             }
 
-            // Update session history with assistant response
-            if (!response.getResults().isEmpty()) {
-                chatSession.addAssistantMessage(request.sessionId(),
-                        response.getResults().get(0).getOutput());
+            // Extract final text and thinking from last response
+            StringBuilder textResponse = new StringBuilder();
+            StringBuilder thinkingResponse = new StringBuilder();
+            if (finalResponse != null) {
+                for (Generation gen : finalResponse.getResults()) {
+                    AssistantMessage msg = gen.getOutput();
+                    if (msg.getMetadata().containsKey("signature")
+                            || msg.getMetadata().containsKey("thinking")) {
+                        String text = msg.getText();
+                        if (text != null && !text.isBlank()) {
+                            if (!thinkingResponse.isEmpty()) thinkingResponse.append("\n");
+                            thinkingResponse.append(text);
+                        }
+                    } else {
+                        String text = msg.getText();
+                        if (text != null && !text.isBlank()) {
+                            if (!textResponse.isEmpty()) textResponse.append("\n");
+                            textResponse.append(text);
+                        }
+                    }
+                }
             }
+
+            // Sync new messages back to session for multi-turn correctness
+            for (int i = existingSize; i < messages.size(); i++) {
+                Message msg = messages.get(i);
+                if (msg instanceof AssistantMessage am) {
+                    chatSession.addAssistantMessage(request.sessionId(), am);
+                } else if (msg instanceof ToolResponseMessage trm) {
+                    chatSession.addToolResponseMessage(request.sessionId(), trm);
+                }
+                // UserMessage was already added via addUserMessage above
+            }
+
+            // Get captured HTTP traffic
+            List<HttpTrafficCapture.CapturedRound> httpRounds = trafficCapture.getRounds();
 
             return ResponseEntity.ok(Map.of(
                     "text", textResponse.toString(),
@@ -116,108 +168,168 @@ public class ChatController {
                                     "input", c.input(),
                                     "output", c.output()))
                             .toList(),
-                    "apiRoundTrips", capturedRounds.stream()
-                            .map(rt -> Map.<String, Object>of(
-                                    "round", rt.round(),
-                                    "request", Map.of(
-                                            "model", rt.request().model(),
-                                            "systemPrompt", rt.request().systemPrompt(),
-                                            "messages", rt.request().messages(),
-                                            "tools", rt.request().tools()
-                                    ),
-                                    "response", Map.of(
-                                            "text", rt.response().text(),
-                                            "thinking", rt.response().thinking(),
-                                            "finishReason", rt.response().finishReason(),
-                                            "inputTokens", rt.response().inputTokens(),
-                                            "outputTokens", rt.response().outputTokens(),
-                                            "durationMs", rt.response().durationMs(),
-                                            "toolCalls", rt.response().toolCalls().stream()
-                                                    .map(tc -> Map.<String, Object>of("name", tc.name(), "input", tc.input()))
-                                                    .toList()
-                                    )
-                            ))
-                            .toList(),
-                    "httpTraffic", buildHttpTraffic(capturedRounds)
+                    "apiRoundTrips", buildApiRoundTrips(httpRounds),
+                    "httpTraffic", buildHttpTrafficFromCapture(httpRounds)
             ));
 
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(
                     Map.of("error", e.getMessage() != null ? e.getMessage() : "Unknown error"));
+        } finally {
+            trafficCapture.clear();
         }
     }
 
     /**
-     * Build HTTP traffic data from captured API round-trips.
-     * Since Spring AI uses its own HTTP client (OkHttp for Anthropic),
-     * we reconstruct the traffic from the advisor-level capture data.
+     * Parse captured HTTP rounds into structured API round-trip data
+     * (model, messages, tokens, tool calls) from actual Anthropic API JSON.
      */
-    private List<Map<String, Object>> buildHttpTraffic(List<HttpCaptureAdvisor.ApiRoundTrip> rounds) {
+    private List<Map<String, Object>> buildApiRoundTrips(List<HttpTrafficCapture.CapturedRound> rounds) {
         List<Map<String, Object>> result = new ArrayList<>();
-        for (HttpCaptureAdvisor.ApiRoundTrip rt : rounds) {
+        for (HttpTrafficCapture.CapturedRound round : rounds) {
             try {
-                // Construct synthetic request/response bodies as JSON
-                Map<String, Object> reqBody = new LinkedHashMap<>();
-                reqBody.put("model", rt.request().model());
-                reqBody.put("system", rt.request().systemPrompt());
-                reqBody.put("messages", rt.request().messages());
-                if (!rt.request().tools().isEmpty()) {
-                    reqBody.put("tools", rt.request().tools());
+                Map<String, Object> reqBody = objectMapper.readValue(
+                        round.requestBody(), new TypeReference<>() {});
+                Map<String, Object> respBody = objectMapper.readValue(
+                        round.responseBody(), new TypeReference<>() {});
+
+                // --- Request data ---
+                String model = String.valueOf(reqBody.getOrDefault("model", ""));
+                String systemPrompt = "";
+                Object system = reqBody.get("system");
+                if (system instanceof String s) {
+                    systemPrompt = s;
+                } else if (system instanceof List<?> list) {
+                    // Anthropic format: system can be an array of content blocks
+                    systemPrompt = objectMapper.writeValueAsString(list);
                 }
 
-                Map<String, Object> respBody = new LinkedHashMap<>();
-                respBody.put("id", "chatcmpl-" + rt.round());
-                respBody.put("model", rt.request().model());
-                Map<String, Object> respUsage = new LinkedHashMap<>();
-                respUsage.put("input_tokens", rt.response().inputTokens());
-                respUsage.put("output_tokens", rt.response().outputTokens());
-                respBody.put("usage", respUsage);
+                List<String> messages = new ArrayList<>();
+                Object msgsObj = reqBody.get("messages");
+                if (msgsObj instanceof List<?> msgs) {
+                    for (Object msg : msgs) {
+                        messages.add(objectMapper.writeValueAsString(msg));
+                    }
+                }
 
-                List<Map<String, Object>> respChoices = new ArrayList<>();
-                Map<String, Object> choice = new LinkedHashMap<>();
-                choice.put("index", 0);
-                Map<String, Object> message = new LinkedHashMap<>();
-                message.put("role", "assistant");
-                message.put("content", rt.response().text());
-                choice.put("message", message);
-                choice.put("finish_reason", rt.response().finishReason());
-                respChoices.add(choice);
-                respBody.put("choices", respChoices);
+                List<String> tools = new ArrayList<>();
+                Object toolsObj = reqBody.get("tools");
+                if (toolsObj instanceof List<?> toolsList) {
+                    for (Object tool : toolsList) {
+                        if (tool instanceof Map<?, ?> toolMap) {
+                            Object name = toolMap.get("name");
+                            if (name != null) tools.add(name.toString());
+                        }
+                    }
+                }
 
-                // Build headers with masking
-                List<Map<String, Object>> reqHeaders = new ArrayList<>();
-                reqHeaders.add(Map.of("name", "content-type", "value", "application/json", "sensitive", false));
-                reqHeaders.add(Map.of("name", "authorization", "value", maskApiKey(apiKey), "sensitive", true));
-                reqHeaders.add(Map.of("name", "x-api-key", "value", maskApiKey(apiKey), "sensitive", true));
+                // --- Response data ---
+                String text = "";
+                String thinking = "";
+                Object stopReason = respBody.get("stop_reason");
+                String finishReason = stopReason != null ? stopReason.toString() : "unknown";
+                int inputTokens = 0;
+                int outputTokens = 0;
+                List<Map<String, Object>> toolCalls = new ArrayList<>();
 
-                List<Map<String, Object>> respHeaders = new ArrayList<>();
-                respHeaders.add(Map.of("name", "content-type", "value", "application/json", "sensitive", false));
-                respHeaders.add(Map.of("name", "x-request-id", "value", "req-" + rt.round(), "sensitive", false));
+                Object usage = respBody.get("usage");
+                if (usage instanceof Map<?, ?> usageMap) {
+                    Object inTok = usageMap.get("input_tokens");
+                    Object outTok = usageMap.get("output_tokens");
+                    if (inTok instanceof Number n) inputTokens = n.intValue();
+                    if (outTok instanceof Number n) outputTokens = n.intValue();
+                }
 
-                // Derive URL from base URL + model
-                String url = aiBaseUrl.replaceAll("/+$", "") + "/v1/messages";
+                Object content = respBody.get("content");
+                if (content instanceof List<?> contentList) {
+                    for (Object item : contentList) {
+                        if (item instanceof Map<?, ?> contentItem) {
+                            Object typeObj = contentItem.get("type");
+                            String type = typeObj != null ? String.valueOf(typeObj) : "";
+                            switch (type) {
+                                case "text" -> {
+                                    Object t = contentItem.get("text");
+                                    text = t != null ? String.valueOf(t) : "";
+                                }
+                                case "thinking" -> {
+                                    Object th = contentItem.get("thinking");
+                                    thinking = th != null ? String.valueOf(th) : "";
+                                }
+                                case "tool_use" -> {
+                                    Object n = contentItem.get("name");
+                                    Object inp = contentItem.get("input");
+                                    toolCalls.add(Map.of(
+                                            "name", n != null ? String.valueOf(n) : "",
+                                            "input", inp != null ? objectMapper.writeValueAsString(inp) : ""));
+                                }
+                                default -> {}
+                            }
+                        }
+                    }
+                }
 
-                result.add(Map.of(
-                        "round", rt.round(),
-                        "url", url,
-                        "method", "POST",
-                        "statusCode", 200,
-                        "durationMs", rt.response().durationMs(),
-                        "requestHeaders", reqHeaders,
-                        "requestBody", objectMapper.writeValueAsString(reqBody),
-                        "responseHeaders", respHeaders,
-                        "responseBody", objectMapper.writeValueAsString(respBody)
+                result.add(Map.<String, Object>ofEntries(
+                        Map.entry("round", round.round()),
+                        Map.entry("request", Map.of(
+                                "model", model,
+                                "systemPrompt", systemPrompt,
+                                "messages", messages,
+                                "tools", tools
+                        )),
+                        Map.entry("response", Map.of(
+                                "text", text,
+                                "thinking", thinking,
+                                "finishReason", finishReason,
+                                "inputTokens", inputTokens,
+                                "outputTokens", outputTokens,
+                                "durationMs", round.durationMs(),
+                                "toolCalls", toolCalls
+                        ))
                 ));
             } catch (Exception e) {
-                // Skip this round if serialization fails
+                // Skip rounds that can't be parsed (e.g., non-JSON responses)
             }
         }
         return result;
     }
 
-    private String maskApiKey(String key) {
-        if (key == null || key.length() <= 8) return "***REDACTED***";
-        return key.substring(0, 4) + "***REDACTED***";
+    /**
+     * Convert captured HTTP rounds to the frontend HttpTraffic format.
+     * Headers are converted from Map to {name, value, sensitive}[] arrays.
+     */
+    private List<Map<String, Object>> buildHttpTrafficFromCapture(
+            List<HttpTrafficCapture.CapturedRound> rounds) {
+        return rounds.stream().map(round -> {
+            List<Map<String, Object>> reqHeaders = headersToMapList(round.requestHeaders());
+            List<Map<String, Object>> respHeaders = headersToMapList(round.responseHeaders());
+
+            return Map.<String, Object>of(
+                    "round", round.round(),
+                    "url", round.url(),
+                    "method", round.method(),
+                    "statusCode", round.statusCode(),
+                    "durationMs", round.durationMs(),
+                    "requestHeaders", reqHeaders,
+                    "requestBody", round.requestBody(),
+                    "responseHeaders", respHeaders,
+                    "responseBody", round.responseBody()
+            );
+        }).toList();
+    }
+
+    private List<Map<String, Object>> headersToMapList(Map<String, String> headers) {
+        return headers.entrySet().stream()
+                .map(e -> {
+                    String key = e.getKey().toLowerCase();
+                    boolean sensitive = key.contains("authorization") || key.contains("api-key")
+                            || key.contains("x-api-key") || key.contains("apikey");
+                    return Map.<String, Object>of(
+                            "name", e.getKey(),
+                            "value", e.getValue(),
+                            "sensitive", sensitive
+                    );
+                })
+                .toList();
     }
 
     public record ChatRequest(String message, String agentId, String sessionId) {}

@@ -241,3 +241,13 @@ application-local.yml
 .gradle/
 build/
 !gradle/wrapper/gradle-wrapper.jar
+
+# Claude Code / OMC local state
+.claude/
+.omc/
+.superpowers/
+.playwright-mcp/
+state/
+
+# Debug screenshots
+*.png

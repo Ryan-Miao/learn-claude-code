@@ -17,6 +17,7 @@ export function NetworkPanel({ traffic }: NetworkPanelProps) {
 
   const selected = traffic[selectedIdx];
   const totalDuration = traffic.reduce((s, t) => s + t.durationMs, 0);
+  const maxDuration = Math.max(...traffic.map((t) => t.durationMs));
   const totalTokens = traffic.reduce(
     (s, t) => {
       try {
@@ -65,36 +66,59 @@ export function NetworkPanel({ traffic }: NetworkPanelProps) {
             <span className="nm-col-right">Time</span>
             <span className="nm-col-right">Status</span>
           </div>
-          {traffic.map((t, i) => (
-            <div
-              key={i}
-              className={`nm-list-item ${i === selectedIdx ? "nm-list-item-active" : ""}`}
-              onClick={() => setSelectedIdx(i)}
-            >
-              <span
-                className={`nm-round-badge ${i === selectedIdx ? "nm-round-badge-active" : ""}`}
+          {traffic.map((t, i) => {
+            const pct = maxDuration > 0 ? Math.round((t.durationMs / maxDuration) * 100) : 0;
+            const tier =
+              t.durationMs < 1000
+                ? "bg-emerald-500"
+                : t.durationMs < 3000
+                  ? "bg-amber-500"
+                  : "bg-red-500";
+            const reqSize = (t.requestBody.length / 1024).toFixed(1);
+            const respSize = (t.responseBody.length / 1024).toFixed(1);
+            return (
+              <div
+                key={i}
+                className={`nm-list-item ${i === selectedIdx ? "nm-list-item-active" : ""}`}
+                onClick={() => setSelectedIdx(i)}
               >
-                R{t.round}
-              </span>
-              <div className="nm-list-item-main">
-                <span className="nm-list-item-name">
-                  {t.method} {safePathname(t.url)}
+                <span
+                  className={`nm-round-badge ${i === selectedIdx ? "nm-round-badge-active" : ""}`}
+                >
+                  R{t.round}
+                </span>
+                <div className="nm-list-item-main">
+                  <span className="nm-list-item-name">
+                    {t.method} {safePathname(t.url)}
+                  </span>
+                  {/* Timing bar */}
+                  <div className="mt-0.5 h-1 w-full rounded-full bg-zinc-700/50">
+                    <div
+                      className={`h-full rounded-full ${tier}`}
+                      style={{ width: `${Math.max(pct, 3)}%` }}
+                    />
+                  </div>
+                  {/* Payload sizes */}
+                  <div className="mt-0.5 flex gap-2 text-[9px] nm-text-muted">
+                    <span>req {reqSize}KB</span>
+                    <span>resp {respSize}KB</span>
+                  </div>
+                </div>
+                <span className="nm-col-right nm-text-muted">
+                  {(t.durationMs / 1000).toFixed(1)}s
+                </span>
+                <span
+                  className={`nm-col-right nm-status-badge ${
+                    t.statusCode >= 200 && t.statusCode < 300
+                      ? "nm-status-ok"
+                      : "nm-status-err"
+                  }`}
+                >
+                  {t.statusCode}
                 </span>
               </div>
-              <span className="nm-col-right nm-text-muted">
-                {(t.durationMs / 1000).toFixed(1)}s
-              </span>
-              <span
-                className={`nm-col-right nm-status-badge ${
-                  t.statusCode >= 200 && t.statusCode < 300
-                    ? "nm-status-ok"
-                    : "nm-status-err"
-                }`}
-              >
-                {t.statusCode}
-              </span>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Right: Detail panel */}
