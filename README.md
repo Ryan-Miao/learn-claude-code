@@ -205,6 +205,12 @@ learn-claude-code/
 - 原项目 [shareAI-lab/learn-claude-code](https://github.com/shareAI-lab/learn-claude-code) — Agent Harness 工程的 Python 教学版本
 - [abel533/learn-claude-code](https://github.com/abel533/learn-claude-code) — 上游 Fork
 
+## Web chat demo
+![](./docs/img/learn-claude-chat01.png)
+![](./docs/img/learn-claude-chat02.png)
+![](./docs/img/learn-claude-chat03.png)
+![](./docs/img/learn-claude-chat04.png)
+
 ## 许可证
 
 MIT

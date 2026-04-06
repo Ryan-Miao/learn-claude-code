@@ -248,6 +248,3 @@ build/
 .superpowers/
 .playwright-mcp/
 state/
-
-# Debug screenshots
-*.png
