@@ -27,6 +27,7 @@ public class ChatController {
     public ChatController(AiConfig aiConfig, HttpTrafficCapture trafficCapture) {
         this.aiConfig = aiConfig;
         this.trafficCapture = trafficCapture;
+        AgentRegistry.setAiConfig(aiConfig);
     }
 
     @GetMapping("/agents")
