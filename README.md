@@ -52,8 +52,78 @@
 | JDK | 25 | 运行时 |
 | Spring Boot | 4.1.0-M2 | 应用框架 |
 | Spring AI | 2.0.0-M4 | AI 模型调用 |
-| JLine 3 | 3.28.0 | 终端交互 |
+| **Jink** | **0.5.0** | **React-like Terminal UI 框架** |
+| JLine 3 | 3.28.0 | 终端交互（Jink 底层依赖） |
 | Picocli | 4.7.6 | CLI 命令解析 |
+
+### 🖥️ Jink — React-like Terminal UI 框架
+
+本项目使用 [**Jink**](https://github.com/abel533/jink) 作为终端 UI 框架。Jink 是一个受 [Ink](https://github.com/vadimdemedes/ink)（React for CLI）启发的 Java 实现，提供**组件化的全屏 TUI 渲染能力**，基于 JLine 3 构建。
+
+#### 为什么选择 Jink？
+
+原版 Claude Code 使用 Ink（React for CLI）实现终端 UI，Java 生态中没有直接对等物。Jink 填补了这个空白：
+
+| 特性 | Ink (TypeScript) | Jink (Java) |
+|------|-----------------|-------------|
+| 编程模型 | React 组件 + JSX | Component 接口 + 组合模式 |
+| 布局引擎 | Yoga (Flexbox) | 内置 Flexbox-like 布局 |
+| 渲染 | 虚拟 DOM diff | 全屏重绘（alternate screen buffer） |
+| 输入处理 | `useInput()` hook | `Key` 事件 + `onKeyPress()` |
+| 样式 | `<Text color="red">` | `Color.red()` / `Style.bold()` |
+| 底层 | Node.js TTY | JLine 3 Terminal |
+
+#### Jink 在本项目中的作用
+
+Jink 驱动整个全屏 TUI 界面，包括：
+
+- **`ClaudeCodeComponent`** — 主界面组件（标题框 + 消息列表 + 状态栏 + 输入区）
+- **`JinkReplSession`** — 基于 Jink 的 REPL 会话，替代传统的 JLine `readLine()` 模式
+- **`UIMessage`** — 消息模型（系统/用户/AI/工具调用/错误等类型）
+- **`MarkdownToText`** — Markdown 到终端文本的转换
+
+布局结构：
+```
+╭─── Claude Code Java v0.1.0 ───────────────────╮  ← 标题框
+│  ...                                           │
+╰────────────────────────────────────────────────╯
+ ● System message...                                ← 消息列表
+ ● User: hello                                      （虚拟滚动）
+ ● AI response...
+                                                    ← 弹性空白
+ path/to/dir                    model info           ← 状态栏
+────────────────────────────────────────────────────  ← 分隔线
+ ❯ user input here                                   ← 输入区
+```
+
+#### 获取 Jink
+
+Jink 0.5.0 已发布到 **Maven Central**，正常情况下 Maven 会自动下载：
+
+```xml
+<dependency>
+    <groupId>io.mybatis.jink</groupId>
+    <artifactId>jink</artifactId>
+    <version>0.5.0</version>
+</dependency>
+```
+
+如果因网络原因无法从 Maven Central 下载，可以手动编译安装到本地仓库：
+
+```bash
+# 1. 克隆 Jink 源码
+git clone https://github.com/abel533/jink.git
+cd jink
+
+# 2. 编译并安装到本地 Maven 仓库
+mvn install -DskipTests
+
+# 3. 回到本项目继续构建
+cd ../claude-code-java
+mvn compile
+```
+
+> 💡 Jink 源码仅依赖 JLine 3，编译要求 JDK 8+，无其他外部依赖。
 
 ## 🚀 快速开始
 
@@ -450,8 +520,13 @@ com.claudecode
 │   ├── PermissionSettings         // 持久化（用户/项目/会话三级）
 │   ├── DangerousPatterns          // 30+ 危险命令模式检测
 │   └── DenialTracker              // 拒绝追踪（连续 3 / 累计 20 阈值）
+├── tui/                           // Jink 全屏 TUI（替代 JLine readLine 模式）
+│   ├── JinkReplSession            // 基于 Jink 的 REPL 会话
+│   ├── ClaudeCodeComponent        // 主界面组件（标题框+消息列表+状态栏+输入区）
+│   ├── UIMessage                  // 消息模型（系统/用户/AI/工具/错误）
+│   └── MarkdownToText             // Markdown → 终端文本转换
 └── repl/
-    ├── ReplSession                // REPL 会话管理
+    ├── ReplSession                // REPL 会话管理（JLine 传统模式，后备方案）
     └── ClaudeCodeCompleter        // Tab 补全
 ```
 
