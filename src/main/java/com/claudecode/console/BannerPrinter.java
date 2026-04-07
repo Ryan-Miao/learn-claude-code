@@ -11,7 +11,7 @@ import java.util.regex.Pattern;
  */
 public class BannerPrinter {
 
-    private static final String VERSION = "0.1.0";
+    private static final String VERSION = "0.2.0-SNAPSHOT";
 
     // 匹配 ANSI 转义序列的正则
     private static final Pattern ANSI_PATTERN = Pattern.compile("\033\\[[0-9;]*m");
