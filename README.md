@@ -733,4 +733,4 @@ claude-code
 
 ## 📄 License
 
-本项目仅用于学习和研究目的。
+本项目采用 [Apache License 2.0](LICENSE) 开源协议。
