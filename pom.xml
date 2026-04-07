@@ -13,7 +13,7 @@
 
     <groupId>com.claudecode</groupId>
     <artifactId>claude-code-java</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>0.1.0</version>
     <name>claude-code-java</name>
     <description>Claude Code 的 Java Spring AI 重写实现</description>
     <packaging>jar</packaging>

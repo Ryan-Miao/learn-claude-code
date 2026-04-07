@@ -182,7 +182,7 @@ mvn spring-boot:run
 ### 启动效果
 
 ```
-  ◆ Claude Code (Java)  v0.1.0-SNAPSHOT
+  ◆ Claude Code (Java)  v0.1.0
   Type /help for commands  •  Ctrl+D to exit
 
   Provider: OPENAI  Model: deepseek-chat
@@ -664,7 +664,7 @@ mvn clean compile
 
 ```bash
 mvn clean package -DskipTests
-java -jar target/claude-code-java-0.1.0-SNAPSHOT.jar
+java -jar target/claude-code-java-0.1.0.jar
 ```
 
 ### 发行版构建（jlink 最小 JRE）
