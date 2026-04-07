@@ -16,5 +16,7 @@ if [ "$1" != "--keep" ]; then
   fi
 fi
 
-echo "Starting dev server on http://localhost:$PORT/learn-claude-code/zh"
+echo ""
+echo "  Frontend ready → http://localhost:$PORT/learn-claude-code/zh"
+echo ""
 npm run dev
